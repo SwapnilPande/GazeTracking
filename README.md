@@ -39,7 +39,7 @@ Gaze-based navigation control for powered wheelchair users
     * Build testing environment and evaluate performance
 5. Build codebase for "plug-n-play" ML development Week 4 - (7/9-7/13)
     * Aim to minimize work required to train and implement various ML models
-4. Build new ML Model Week 4-7 (7/9-9/3
+4. Build new ML Model Week 4-7 (7/9-9/3)
     * Ignore runtime performance optimization
     * Evaluate performance in testing environment
     * Iterate and re-evaluate
