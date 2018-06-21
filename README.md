@@ -34,12 +34,12 @@ Gaze-based navigation control for powered wheelchair users
     * Study current techniques and model architectures
     * Study current tools for building ML pipelines
         * Examples include Deepforge, Tensorflow, Caffe, Torch, Keras, etc.
-3. Replicate performance of current state-of-the-art solutions Week 2-4 (6/25-7/13)
+3. Replicate performance of current state-of-the-art solutions - Week 2-4 (6/25-7/13)
     * Krafka's [Eye tracking for everyone](http://gazecapture.csail.mit.edu/) (Krafka et al.)
     * Build testing environment and evaluate performance
-5. Build codebase for "plug-n-play" ML development Week 4 - (7/9-7/13)
+5. Build codebase for "plug-n-play" ML development - Week 4 (7/9-7/13)
     * Aim to minimize work required to train and implement various ML models
-4. Build new ML Model Week 4-7 (7/9-9/3)
+4. Build new ML Model - Week 4-7 (7/9-8/3)
     * Ignore runtime performance optimization
     * Evaluate performance in testing environment
     * Iterate and re-evaluate
