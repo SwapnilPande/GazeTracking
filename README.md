@@ -30,12 +30,14 @@ Gaze-based navigation control for powered wheelchair users
 1. Research eye-tracking and current solutions - Week 1 (6/18-6/22)
     * Study both ML and non-ML solutions
     * Determine performance parameters and limitations
+    * FINDINGS: [Appearance-Based Gaze Estimation in the Wild](arxiv.org/pdf/1504.02863.pdf) (Zhang et al., 2015), [TabletGaze: Unconstrained Appearance-based Gaze Estimation] (https://arxiv.org/pdf/1508.01244.pdf) (Huang et al., 2016), and [Eye tracking for everyone](http://gazecapture.csail.mit.edu/) (Krafka et al., 2016) have the current leading solutions matching design requirements. Additionally, all three have large datasets in non-labratory environments that can be used to train a new model.
+in Mobile Tablets
 2. Resarch Machine Learning - Week 1-2 (6/18-6/29)
     * Study current techniques and model architectures
     * Study current tools for building ML pipelines
         * Examples include Deepforge, Tensorflow, Caffe, Torch, Keras, etc.
 3. Replicate performance of current state-of-the-art solutions - Week 2-4 (6/25-7/13)
-    * Krafka's [Eye tracking for everyone](http://gazecapture.csail.mit.edu/) (Krafka et al.)
+    * Krafka's [Eye tracking for everyone](http://gazecapture.csail.mit.edu/) (Krafka et al., 2016)
     * Build testing environment and evaluate performance
 5. Build codebase for "plug-n-play" ML development - Week 4 (7/9-7/13)
     * Aim to minimize work required to train and implement various ML models
