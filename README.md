@@ -36,6 +36,7 @@ in Mobile Tablets
     * Study current techniques and model architectures
     * Study current tools for building ML pipelines
         * Examples include Deepforge, Tensorflow, Caffe, Torch, Keras, etc.
+        * FINDINGS: Tensorflow is currently the most widely supported platform for building deep learning models. Keras is the most widely supported wrapper for Tensorflow, making the code less verbose and better-suited for learning & experimentation. The current implementation plan is to use Keras for testing and rapid prototyping and shift to direct implementation in TensorFlow in later stages of product development.
 3. Replicate performance of current state-of-the-art solutions - Week 2-4 (6/25-7/13)
     * Krafka's [Eye tracking for everyone](http://gazecapture.csail.mit.edu/) (Krafka et al., 2016)
     * Build testing environment and evaluate performance
