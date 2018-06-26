@@ -1,4 +1,4 @@
-# EyeTracking
+# GazeTracking
 ## Objective
 Accurately estimate gaze direction of a user using inexpensive, readily-available cameras
 
