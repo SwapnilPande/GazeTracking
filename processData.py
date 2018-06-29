@@ -5,9 +5,6 @@ import random
 from os import listdir
 
 
-
-
-
 class DataPreProcessor:
 	#Class attributes
 	
@@ -296,7 +293,21 @@ class DataPreProcessor:
 		#Return only the first numFrames frames
 		return validFrames[:numFrames]
 
-
+	# generateBatch
+	# Generates a batch of data to pass to ML model
+	# The batch contains batchSize number of frames
+	# A random number of frames (2 <= maxFrames < maxFrames)
+	# are selected from randomly selected participants
+	# Returns:
+	# Dictionary containing the following keys
+	# - face: Numpy array containing batch of data for face (batchSize, 224, 224, 3)
+	# - leftEye: Numpy array containing batch of data for left eye (batchSize, 224, 224, 3)
+	# - rightEye: Numpy array containing batch of data for right eye (batchSize, 224, 224, 3)
+	# - faceGrid: Numpy array containing batch of data for facegrid (batchSize, 625)
+	# Numpy array containing label batch (batchSize, 2). 
+	# 	The labels are the x & y location of gaze relative to camera.
+	# Numpy array containing metadata for batch (batchSize, 2)
+	# 	Metadata describes the subject and frame number for each image 
 	def generateBatch(self):
 		#Intializing numpy array for output batches
 		#metaBatch containsL:
@@ -352,45 +363,52 @@ class DataPreProcessor:
 					'faceGrid' : faceGridBatch
 				}, labelsBatch, metaBatch
 
-def displayBatch(input, labels, meta):
-	for i, (f, l, r, fg, lb, meta) in enumerate(zip(input['face'],
-												input['leftEye'],
-												input['rightEye'],
-												input['faceGrid'],
-												labels,
-												meta)):
-		#Title String
-		title =  'Image #' + str(i) 
-		title += ': Subject ' + str(meta[0]) 
-		title += ', Frame ' + str(meta[1]) 
+	# displayBatch
+	# Displays the data for each frame in the batch
+	# Prints facegrid and labels to console and displays images
+	# Arguments:
+	# input - Dictionary containing face, left eye, right eye, and facegrid data
+	# labels - Numpy array containing the labels for each frame
+	# meta - Numpy array containing subject & frame number for each frame
+	# Note: Arguments are created by generateBatch() and should be passed
+	# without modification
+	# Press esc to stop outputting frame, press any key to go to next frame
+	def displayBatch(self, input, labels, meta):
+		for i, (f, l, r, fg, lb, meta) in enumerate(zip(input['face'],
+													input['leftEye'],
+													input['rightEye'],
+													input['faceGrid'],
+													labels,
+													meta)):
+			#Title String
+			title =  'Image #' + str(i) 
+			title += ': Subject ' + str(meta[0]) 
+			title += ', Frame ' + str(meta[1]) 
 
-		print(title)
+			print(title)
 
-		#Draw facegrid here
-		print('FACEGRID')
-		for j in range(0,25):
-			for k in range(0,25):
-				print(int(fg[k+25*j]), end='')
-			print('')
+			#Draw facegrid here
+			print('FACEGRID')
+			for j in range(0,25):
+				for k in range(0,25):
+					print(int(fg[k+25*j]), end='')
+				print('')
 
-		print('LABELS')
-		print(lb)
-		#Place 3 images side by side to display
-		output = np.concatenate((f, l, r), axis = 1)
-		#Show images
-		cv2.imshow(title, output)
+			print('LABELS')
+			print(lb)
+			#Place 3 images side by side to display
+			output = np.concatenate((f, l, r), axis = 1)
+			#Show images
+			cv2.imshow(title, output)
 
-		#Wait for key input
-		key = cv2.waitKey(0)
-		if(key == 27):
-			break
-		cv2.destroyAllWindows()
-		
+			#Wait for key input
+			key = cv2.waitKey(0)
+			if(key == 27):
+				break
+			cv2.destroyAllWindows()
+	
+# pp = DataPreProcessor(2, 50, 10)
+# inputs, labels, meta =  pp.generateBatch()
+# pp.displayBatch(inputs, labels, meta)
 
-
-
-
-pp = DataPreProcessor(2, 50, 10)
-inputData, meta, labels = pp.generateBatch()
-displayBatch(inputData, meta, labels)
 
