@@ -2,7 +2,12 @@ import json
 import numpy as np
 import cv2
 import random
-from os import listdir
+import os
+import shutil
+import tarfile
+
+
+
 
 
 class DataPreProcessor:
@@ -13,11 +18,64 @@ class DataPreProcessor:
 	# batchSizeIn - Size of batch to output
 	# maxFramesIn - Maximum number of frames to grab from a participant in a single batch
 	# 				Not guarnateed to get this number of frames for each subject
-	def __init__(self, numSubjects, batchSize, maxFrames):
-		self.numSubjects = numSubjects
-		self.batchSize = batchSize
-		self.maxFrames = maxFrames
-		self.subjectDirs = listdir(path='data/')
+	def __init__(self, pathToData): #, batchSize, maxFrames
+		#Getting all of the subject directories in the data directories
+		dataDirs = os.listdir(path=pathToData)
+
+		subjectDirs = []
+		#Create list containing all of the items ending with .zip
+		#This represents the zip files containing data for each subject
+		print('Locating data')
+		for item in dataDirs:
+			if item.endswith('.tar.gz'):
+				subjectDirs.append(pathToData + '/' + item)
+		print('Found ' + str(len(subjectDirs)) + " subjects")
+
+		#Create data to store unzipped subject data
+		print('Creating temporary directory to store unzipped data')
+		self.tempDataDir = 'data/temp'
+		try:
+			os.mkdir(self.tempDataDir)
+		except FileExistsError: #Temp directory already exists
+			print('Temporary directory already exists. Clean directory? (y/n)')
+			response = input()
+			while(response != 'y' and response != 'n'):
+				print("Enter only y or n:")
+				response = input()
+			if(response == 'y'): #Delete directory
+				shutil.rmtree(self.tempDataDir)
+				os.mkdir(self.tempDataDir)
+			else:
+				raise FileExistsError('Cannot operate on non-empty temp directory. Clean directory or select a new directory.')
+
+		#Unzip data for all subjects, write to temp directory
+		print('Unzipping subject data into temporary directory: ' + self.tempDataDir)
+
+		for subject in subjectDirs:
+			with tarfile.open(subject, 'r:*') as f:
+				f.extractall(self.tempDataDir)
+
+		#Build index of metadata for each frame
+		frameIndex = [] #Stores the paths to all valid frames
+
+		# input("Press Enter to continue...")
+
+		# print('Removing temp directory...')
+		# shutil.rmtree(self.tempDataDir)
+
+
+
+
+
+
+
+
+
+		# self.numSubjects = numSubjects
+		# self.batchSize = batchSize
+		# self.maxFrames = maxFrames
+		
+
 
 	# self.num2Str
 	# Creates a string containng zero padded integer
@@ -410,5 +468,7 @@ class DataPreProcessor:
 # pp = DataPreProcessor(2, 50, 10)
 # inputs, labels, meta =  pp.generateBatch()
 # pp.displayBatch(inputs, labels, meta)
+
+pp = DataPreProcessor('data/zip')
 
 
