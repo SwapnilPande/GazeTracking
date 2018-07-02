@@ -97,19 +97,21 @@ class DataPreProcessor:
 		#Build index of metadata for each frame of training, validation, and testing data
 		#Stores the paths to all valid frames (training)
 		#Note: path is relative to working dir, not training data dir
+		self.frameIndex = {} #Declaring dictionary of indexes for training, validation, and testing datasets
+		self.metadata = {} #Deeclaring dictionary of metadata dictionaries
 		print('Building index and collecting metadata for training data')
-		self.trainFrameIndex, self.trainMetaData = self.indexData(self.trainDir)
+		self.frameIndex['train'], self.metadata['train'] = self.indexData(self.trainDir)
 		
 		print('Building index and collecting metadata for validation data')
-		self.validateFrameIndex, self.validateMetaData = self.indexData(self.validateDir)
+		self.frameIndex['validate'], self.metadata['validate'] = self.indexData(self.validateDir)
 		
 		print('Building index and collecting metadata for testing data')
-		self.testFrameIndex, self.testMetaData = self.indexData(self.testDir) 
+		self.frameIndex['test'], self.metadata['test'] = self.indexData(self.testDir) 
 
 		#Get Number of frames
-		self.numTrainFrames = len(self.trainFrameIndex)
-		self.numValidateFrames = len(self.validateFrameIndex)
-		self.numTestFrames = len(self.testFrameIndex)
+		self.numTrainFrames = len(self.frameIndex['train'])
+		self.numValidateFrames = len(self.frameIndex['validate'])
+		self.numTestFrames = len(self.frameIndex['test'])
 
 		print()
 		print("Number of training frames: " + str(self.numTrainFrames))
@@ -120,8 +122,11 @@ class DataPreProcessor:
 
 		#Initializing other variables
 		#Used to store the frames that have already been samples this epoch
-		self.sampledTrainFrames = set()
-		self.sampledValidateFrames = set()
+		self.sampledFrames = {
+			'train' : set(),
+			'validate' : set(),
+			'test' : set()
+ 		}
 
 		
 	def cleanup(self):
@@ -278,7 +283,7 @@ class DataPreProcessor:
 	# Arguments:
 	# imagePath - List of the paths of the images to retrieve
 	# Returns 4D 3 NumPy arrays containing the images (image, x, y, channel)
-	def getInputImages(self, imagePaths):
+	def getInputImages(self, imagePaths, dataset):
 		#Desired size of images after processing
 		desiredImageSize = 224
 
@@ -292,69 +297,45 @@ class DataPreProcessor:
 			#Reading in frame from file
 			image = self.getImage(frame)
 
-			faceMeta = {}
-			leftEyeMeta = {}
-			rightEyeMeta = {}
-
-			#Retrieve metadata about given frame
-			if frame in self.trainMetaData:
-				faceMeta = self.trainMetaData[frame]['face']
-				leftEyeMeta = self.trainMetaData[frame]['leftEye']
-				rightEyeMeta = self.trainMetaData[frame]['rightEye']
-			elif frame in self.validateMetaData:
-				faceMeta = self.validateMetaData[frame]['face']
-				leftEyeMeta = self.validateMetaData[frame]['leftEye']
-				rightEyeMeta = self.validateMetaData[frame]['rightEye']
-			else:
-				faceMeta = self.testMetaData[frame]['face']
-				leftEyeMeta = self.testMetaData[frame]['leftEye']
-				rightEyeMeta = self.testMetaData[frame]['rightEye']
-
 			#Crop image of face from original frame
-			xFace = int(faceMeta['X'])
-			yFace = int(faceMeta['Y'])
-			wFace = int(faceMeta['W'])
-			hFace = int(faceMeta['H'])
+			xFace = int(self.metadata[dataset][frame]['face']['X'])
+			yFace = int(self.metadata[dataset][frame]['face']['Y'])
+			wFace = int(self.metadata[dataset][frame]['face']['W'])
+			hFace = int(self.metadata[dataset][frame]['face']['H'])
 
 
 			#Crop image of left eye
 			#JSON file specifies position eye relative to face
 			#Therefore, we must transform to make coordinates
 			#Relative to picture by adding coordinates of face
-			xLeft = int(leftEyeMeta['X']) + xFace
-			yLeft = int(leftEyeMeta['Y']) + yFace
-			wLeft = int(leftEyeMeta['W'])
-			hLeft = int(leftEyeMeta['H'])
+			xLeft = int(self.metadata[dataset][frame]['leftEye']['X']) + xFace
+			yLeft = int(self.metadata[dataset][frame]['leftEye']['Y']) + yFace
+			wLeft = int(self.metadata[dataset][frame]['leftEye']['W'])
+			hLeft = int(self.metadata[dataset][frame]['leftEye']['H'])
 
 			#Right Eye
-			xRight = int(rightEyeMeta['X']) + xFace
-			yRight = int(rightEyeMeta['Y']) + yFace
-			wRight = int(rightEyeMeta['W'])
-			hRight = int(rightEyeMeta['H'])
+			xRight = int(self.metadata[dataset][frame]['rightEye']['X']) + xFace
+			yRight = int(self.metadata[dataset][frame]['rightEye']['Y']) + yFace
+			wRight = int(self.metadata[dataset][frame]['rightEye']['W'])
+			hRight = int(self.metadata[dataset][frame]['rightEye']['H'])
 			print(frame)
 			#Bound checking - ensure x & y are >= 0
 			if(xFace < 0):
-				print('FACEX')
 				wFace = wFace + xFace
 				xFace = 0
 			if(yFace < 0):
-				print('FACEY')
 				hFace = hFace + yFace
 				yFace = 0
 			if(xLeft < 0):
-				print('LEFTX')
 				wLeft = wLeft + xLeft
 				xLeft = 0
 			if(yLeft < 0):
-				print('LEFTY')
 				hLeft = hLeft + yLeft
 				yLeft = 0
 			if(xRight < 0):
-				print('RIGHTX')
 				wRight = wRight + xRight
 				xRight = 0
 			if(yRight < 0):
-				print('RIGHTY')
 				hRight = hRight + yRight
 				yRight = 0
 
@@ -386,25 +367,17 @@ class DataPreProcessor:
 	# Arguments:
 	# imagePath - List of the paths of the images to retrieve
 	# Returns a 2D NumPy array containing the faceGrid (framesx625)
-	def getFaceGrids(self, imagePaths):
+	def getFaceGrids(self, imagePaths,dataset):
 		#Size of the facegrid output
 		faceGridSize = 625
 
 		faceGrids = np.zeros((len(imagePaths), faceGridSize))
 		for frameNum, frame in enumerate(imagePaths):
-			faceGridMeta = {}
-			#Retrieve metadata about given frame
-			if frame in self.trainMetaData:
-				faceGridMeta = self.trainMetaData[frame]['faceGrid']
-			elif frame in self.validateMetaData:
-				faceGridMeta = self.validateMetaData[frame]['faceGrid']
-			else:
-				faceGridMeta = self.testMetaData[frame]['faceGrid']
-
-			x = faceGridMeta['X']
-			y = faceGridMeta['Y']
-			w = faceGridMeta['W']
-			h = faceGridMeta['H']
+			#Retrieve necessary values
+			x =  self.metadata[dataset][frame]['faceGrid']['X']
+			y =  self.metadata[dataset][frame]['faceGrid']['Y']
+			w =  self.metadata[dataset][frame]['faceGrid']['W']
+			h =  self.metadata[dataset][frame]['faceGrid']['H']
 
 			#Create 5x5 array of zeros
 			faceGrid = np.zeros((25, 25))
@@ -425,61 +398,12 @@ class DataPreProcessor:
 	# Arguments:
 	# imagePath - List of the paths of the images to retrieve
 	# Returns a (framesx2) numpy array containing the x and y location of the targets relative to camera
-	def getLabels(self, imagePaths):
+	def getLabels(self, imagePaths, dataset):
 		labels = np.zeros((len(imagePaths), 2))
 		for i, frame in enumerate(imagePaths):
-			labelMeta = {}
-			#Retrieve metadata about given frame
-			if frame in self.trainMetaData:
-				labelMeta = self.trainMetaData[frame]['label']
-			elif frame in self.validateMetaData:
-				labelMeta = self.validateMetaData[frame]['label']
-			else:
-				labelMeta = self.testMetaData[frame]['label']
-			labels[i] = np.array([labelMeta['XCam'], labelMeta['YCam']])
+			labels[i] = np.array([self.metadata[dataset][frame]['label']['XCam'],
+									self.metadata[dataset][frame]['label']['YCam']])
 		return labels
-
-	# getMaxFrames
-	# Determines the maximum number of frames that can be retrieved from a subject
-	# Returns value of maxFrames if the number of valid frames exceeds maxFrames
-	# Else, returns the number of valid frames
-	# Arguments:
-	# subject - Integer number of subject for which to determine max frames
-	# Returns integer containing max number of frames
-	def getMaxFrames(self, subject):
-		#Collecting information about subject from info files
-		subjectInfo = self.getSubjectInfoJSON(subject)
-		numEyeDetections = subjectInfo['NumEyeDetections']
-		numFaceDetections = subjectInfo['NumFaceDetections']
-		return min((self.maxFrames, numEyeDetections, numFaceDetections))
-
-
-	# selectRandomFrames
-	# Generates a list of length numFrames of random and valid frames 
-	# for a given subject
-	# Arguments:
-	# subject - Integer number of subject for which to determine max frames
-	# numFrames - Integer describing number of frames to retrieve
-	# 			numFrames must be less than or equal to num valid frames
-	# Returns a list of frames to collect
-	def selectRandomFrames(self, subject, numFrames):
-		#Collecting information about subject from info files
-		faceInfo = self.getFaceGridJSON(subject)
-		leftEyeInfo, rightEyeInfo = self.getEyesJSON(subject)
-
-		validFrames = []
-		#Create list of all indices with valid frames
-		for i, (f, l, r) in enumerate(zip(
-							faceInfo["IsValid"], 
-							leftEyeInfo['IsValid'], 
-							rightEyeInfo['IsValid'])):
-			if(f*l*r == 1):
-				validFrames.append(i)
-		#randomize order of frames
-		random.shuffle(validFrames)
-
-		#Return only the first numFrames frames
-		return validFrames[:numFrames]
 
 	# generateBatch
 	# Generates a batch of data to pass to ML model
@@ -496,39 +420,39 @@ class DataPreProcessor:
 	# 	The labels are the x & y location of gaze relative to camera.
 	# Numpy array containing metadata for batch (batchSize, 2)
 	# 	Metadata describes the subject and frame number for each image 
-	def generateTrainingBatch(self, batchSize, dataset):		
+	def generateBatch(self, batchSize, dataset):		
 		#Determine frames that have been unused in this epoch
 		#by subtracting the sampledTrainFrames from trainFrameIndex  
-		unusedFrames = self.trainFrameIndex - self.sampledTrainFrames
-
+		unusedFrames = self.frameIndex[dataset] - self.sampledFrames[dataset]
+		self.frameIndex[dataset]
 		if(len(unusedFrames) > batchSize):  
 			#Collect batchSize number of  random frames
 			framesToRetrieve = set(random.sample(unusedFrames, batchSize)) 
 			#Mark frames in current batch as used
-			self.sampledTrainFrames = self.sampledTrainFrames | framesToRetrieve
+			self.sampledFrames[dataset] = self.sampledFrames[dataset] | framesToRetrieve
 		elif(len(unusedFrames) == batchSize):
 			framesToRetrieve = unusedFrames
 			#Clear sampled trained frames since all frames have now been sampled in this epoch
-			self.sampledTrainFrames = set()
+			self.sampledFrames[dataset] = set()
 		else: #Number of reamining frames will not fill batch
 			framesToRetrieve = unusedFrames
 			#Clear sampled trained frames since all frames have now been sampled in this epoch
-			self.sampledTrainFrames = set()
+			self.sampledFrames[dataset] = set()
 			#Determine frames that have already been included in this batch
-			unusedFrames = self.trainFrameIndex - framesToRetrieve
+			unusedFrames = self.frameIndex[dataset] - framesToRetrieve
 			#Retrieve enough frames to fill the rest of the batch
 			framesToRetrieve = framesToRetrieve | set(random.sample(unusedFrames, batchSize - len(framesToRetrieve)))
 			#Mark frames in current batch as used
-			self.sampledTrainFrames = self.sampledTrainFrames | framesToRetrieve
+			self.sampledFrames[dataset] = self.sampledFrames[dataset] | framesToRetrieve
 
 		#Generating batches here
 		#Convert set framesToRetrieve to list so that order is preserved for all data
 		framesToRetrieve = list(framesToRetrieve)
 
 		metaBatch = np.array(framesToRetrieve)
-		faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve)
-		faceGridBatch = self.getFaceGrids(framesToRetrieve)
-		labelsBatch = self.getLabels(framesToRetrieve)
+		faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve, dataset)
+		faceGridBatch = self.getFaceGrids(framesToRetrieve, dataset)
+		labelsBatch = self.getLabels(framesToRetrieve, dataset)
 
 		return {
 					'face' : faceBatch, 
@@ -579,8 +503,11 @@ class DataPreProcessor:
 
 
 pp = DataPreProcessor('data/zip', 0.8, 0.15)
-inputs, labels, meta = pp.generateTrainingBatch(50)
+inputs, labels, meta = pp.generateBatch(50, 'train')
 pp.displayBatch(inputs, labels, meta)
+inputs, labels, meta = pp.generateBatch(10, 'validate')
+pp.displayBatch(inputs, labels, meta)
+
 
 pp.cleanup()
 
