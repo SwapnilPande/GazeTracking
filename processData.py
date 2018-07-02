@@ -13,12 +13,18 @@ import tarfile
 class DataPreProcessor:
 	#Class attributes
 	
-	#Constructor
-	# numSubjectsIn - Total number of subjects in dataset
-	# batchSizeIn - Size of batch to output
-	# maxFramesIn - Maximum number of frames to grab from a participant in a single batch
-	# 				Not guarnateed to get this number of frames for each subject
-	def __init__(self, pathToData): #, batchSize, maxFrames
+	# Constructor
+	# Initializes the pre=processor by unzipping all of the user data to a temp directory
+	# and building an index of valid frames and the respective metadata
+	# pathToData - Path to the dir containing the zipped subject data
+	# trainProportion - Proportion of data to make training data
+	# validationProportion - Proportion of data to make validation data
+	# Note: trainProportion + validateProportion must be <= 1. Remaining percentage
+	# is used as training data 
+	def __init__(self, pathToData, trainProportion, validateProportion):
+		self.trainProportion = trainProportion
+		self.validateProportion = validateProportion
+		self.testProportion = 1 - trainProportion - validateProportion
 		#Getting all of the subject directories in the data directories
 		dataDirs = os.listdir(path=pathToData)
 
@@ -29,13 +35,24 @@ class DataPreProcessor:
 		for item in dataDirs:
 			if item.endswith('.tar.gz'):
 				subjectDirs.append(pathToData + '/' + item)
-		print('Found ' + str(len(subjectDirs)) + " subjects")
+
+		#Store number of subjects in variable
+		self.numSubjects = len(subjectDirs)
+		print('Found ' + str(self.numSubjects) + " subjects")
+		print()
 
 		#Create data to store unzipped subject data
+		#Create three subdirectories to split train, validate, and test data
 		print('Creating temporary directory to store unzipped data')
 		self.tempDataDir = 'data/temp'
+		self.trainDir = self.tempDataDir + '/train'
+		self.validateDir = self.tempDataDir + '/validate'
+		self.testDir = self.tempDataDir + '/test'
 		try:
 			os.mkdir(self.tempDataDir)
+			os.mkdir(self.trainDir)
+			os.mkdir(self.validateDir)
+			os.mkdir(self.testDir)
 		except FileExistsError: #Temp directory already exists
 			print('Temporary directory already exists. Clean directory? (y/n)')
 			response = input()
@@ -45,121 +62,182 @@ class DataPreProcessor:
 			if(response == 'y'): #Delete directory
 				shutil.rmtree(self.tempDataDir)
 				os.mkdir(self.tempDataDir)
+				os.mkdir(self.trainDir)
+				os.mkdir(self.validateDir)
+				os.mkdir(self.testDir)
 			else:
 				raise FileExistsError('Cannot operate on non-empty temp directory. Clean directory or select a new directory.')
+		print()
+
+		#Number of training, validation, and test subjects
+		self.numTrainSubjects = round(trainProportion*self.numSubjects)
+		self.numValidateSubjects = round(validateProportion*self.numSubjects)
+		self.numTestSubjects = self.numSubjects - self.numTrainSubjects - self.numValidateSubjects
 
 		#Unzip data for all subjects, write to temp directory
-		print('Unzipping subject data into temporary directory: ' + self.tempDataDir)
+		print('Unpacking subject data into temporary directory: ./' + self.tempDataDir)
+		print('Splitting data into training, validation, and test sets')
+		#Randomize order of subjects to randomize test, training, and validations ets
+		random.shuffle(subjectDirs)
+		for i, subject in enumerate(subjectDirs):
+			if(i < self.numTrainSubjects): #Write to training data folder
+				with tarfile.open(subject, 'r:*') as f:
+					f.extractall(self.trainDir)
+			elif(i < self.numTrainSubjects + self.numValidateSubjects): #Validation folder
+				with tarfile.open(subject, 'r:*') as f:
+					f.extractall(self.validateDir)
+			else: #Test folder
+				with tarfile.open(subject, 'r:*') as f:
+					f.extractall(self.testDir)
+		print("Number of training subjects: " + str(self.numTrainSubjects))
+		print('Number of validation subjects: ' + str(self.numValidateSubjects))
+		print('Number of test subjects: ' + str(self.numTestSubjects))
+		print()
 
-		for subject in subjectDirs:
-			with tarfile.open(subject, 'r:*') as f:
-				f.extractall(self.tempDataDir)
-
-		#Build index of metadata for each frame
-		frameIndex = [] #Stores the paths to all valid frames
-
-		# input("Press Enter to continue...")
-
-		# print('Removing temp directory...')
-		# shutil.rmtree(self.tempDataDir)
-
-
-
-
-
-
-
-
-
-		# self.numSubjects = numSubjects
-		# self.batchSize = batchSize
-		# self.maxFrames = maxFrames
+		#Build index of metadata for each frame of training, validation, and testing data
+		#Stores the paths to all valid frames (training)
+		#Note: path is relative to working dir, not training data dir
+		print('Building index and collecting metadata for training data')
+		self.trainFrameIndex, self.trainMetaData = self.indexData(self.trainDir)
 		
+		print('Building index and collecting metadata for validation data')
+		self.validateFrameIndex, self.validateMetaData = self.indexData(self.validateDir)
+		
+		print('Building index and collecting metadata for testing data')
+		self.testFrameIndex, self.testMetaData = self.indexData(self.testDir) 
+
+		#Get Number of frames
+		self.numTrainFrames = len(self.trainFrameIndex)
+		self.numValidateFrames = len(self.validateFrameIndex)
+		self.numTestFrames = len(self.testFrameIndex)
+
+		print()
+		print("Number of training frames: " + str(self.numTrainFrames))
+		print('Number of validation frames: ' + str(self.numValidateFrames))
+		print('Number of testing frames: ' + str(self.numTestFrames))
+		print()
+		print('Initialization successful!')
+
+		#Initializing other variables
+		#Used to store the frames that have already been samples this epoch
+		self.sampledTrainFrames = []
+		self.sampledValidateFrames = []
+
+		
+	def cleanup(self):
+		print('Removing temp directory...')
+		shutil.rmtree(self.tempDataDir)
 
 
-	# self.num2Str
-	# Creates a string containng zero padded integer
+	def indexData(self, path):
+		#Getting unzipped subject dirs
+		subjectDirs = os.listdir(path=path)
+
+		#Declare index lists and metadata dictionary to return
+		frameIndex = []
+		metadata = {}
+		for subject in subjectDirs:
+			subjectPath = path + "/" + subject
+			#Stores the name of the frame files in the frames dir
+			frameNames = self.getFramesJSON(subjectPath)
+			#Collecting metadata about face, eyes, facegrid, labels
+			face = self.getFaceJSON(subjectPath)
+			leftEye, rightEye = self.getEyesJSON(subjectPath)
+			faceGrid = self.getFaceGridJSON(subjectPath)
+			dotInfo = self.getDotJSON(subjectPath)
+
+			#Iterate over frames for the current subject
+			for i, (frame, fv, lv, rv, fgv) in enumerate(zip(frameNames,
+								face['IsValid'],
+								leftEye['IsValid'],
+								rightEye['IsValid'],
+								faceGrid['IsValid'])):
+				#Check if cur frame is valid
+				if(fv*lv*rv*fgv == 1):
+					#Generate path for frame
+					framePath = subjectPath + "/" + frame
+					#Write file path to index
+					frameIndex.append(framePath)
+					#Build the dictionary containing the metadata for a frame
+					metadata[framePath] = {
+						'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
+						'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
+						'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
+						'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
+						'label': ['XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]]
+					}
+		return frameIndex, metadata
+
+	# getFramesJOSN
+	# Loads frames.json to a dictionary
+	# this file contains the names fo the frames in the directory
 	# Arguments:
-	# number - integer to convert to string
-	# length - fixed length of string >= length of integer
-	# Returns zero padded string
-	def num2Str(self, number, length):
-		return format(number, '0' + str(length) + 'd')
-	
-	def getSubjectPath(self, subject):
-		return 'data/' + self.subjectDirs[subject]
-
+	# subjectPath - Path to unzipped root directory of the subject
+	# Files that are read in:
+	# - frames.json
+	# Returns dictionary objects containing the ingested JSON object
+	def getFramesJSON(self, subjectPath):
+		with open(subjectPath + '/frames.json') as f:
+			frames = json.load(f)
+		return frames
 
 	# getFaceJSON
-	# Collects data about face for a specific frame from the json files
+	# Collects data about face for a specific subject from the json files
 	# Arguments:
 	# Subject - Integer containing the number of the subject (name of the subject directory)
 	# Files that are read in:
 	# - appleFace.json
 	# Returns dictionary objects containing the ingested JSON object
-	def getFaceJSON(self, subject):
-		with open(self.getSubjectPath(subject) + '/appleFace.json') as f:
+	def getFaceJSON(self, subjectPath):
+		with open(subjectPath + '/appleFace.json') as f:
 			faceMeta = json.load(f)
 		return faceMeta
 
 	# getEyes
-	# Collects data about eyes (left & right) for a specific frame from the json files
+	# Collects data about eyes (left & right) for a specific subject from the json files
 	# Arguments:
 	# Subject - Integer containing the number of the subject (name of the subject directory)
 	# Files that are read in:
 	# - appleLeftEye.json
 	# - appleRightEye.json
 	# Returns 2 dictionary objects containing the ingested JSON objects
-	def getEyesJSON(self, subject):
-		with open(self.getSubjectPath(subject) + '/appleLeftEye.json') as f:
+	def getEyesJSON(self, subjectPath):
+		with open(subjectPath + '/appleLeftEye.json') as f:
 			leftEyeMeta = json.load(f)
-		with open(self.getSubjectPath(subject) + '/appleRightEye.json') as f:
+		with open(subjectPath + '/appleRightEye.json') as f:
 			rightEyeMeta = json.load(f)
 		return (leftEyeMeta, rightEyeMeta)
 
 	# getFaceGrid
-	# Collects data about the facegrid for a specific frame from the json files
+	# Collects data about the facegrid for a specific subject from the json files
 	# Arguments:
 	# Subject - Integer containing the number of the subject (name of the subject directory)
 	# Files that are read in:
 	# - faceGrid.json
 	# Returns dictionary object containing the ingested JSON object
-	def getFaceGridJSON(self, subject):
-		with open(self.getSubjectPath(subject) + '/faceGrid.json') as f:
+	def getFaceGridJSON(self, subjectPath):
+		with open(subjectPath + '/faceGrid.json') as f:
 			faceGridMeta = json.load(f)
 		return faceGridMeta
 
 	# getDotJSON
-	# Collects data about dot (target subject is looking at) for a specific frame 
+	# Collects data about dot (target subject is looking at) for a specific subject 
 	# from the json files
 	# Arguments:
 	# Subject - Integer containing the number of the subject (name of the subject directory)
 	# Files that are read in:
 	# - dotInfo.json
 	# Returns dictionary object containing the ingested JSON object
-	def getDotJSON(self, subject):
-		with open(self.getSubjectPath(subject) + '/dotInfo.json') as f:
+	def getDotJSON(self, subjectPath):
+		with open(subjectPath + '/dotInfo.json') as f:
 			dotMeta = json.load(f)
 		return dotMeta
 
-	# getSubjectInfoJSON
-	# Collects data about a specific subject from the info.json file
-	# Arguments:
-	# Subject - Integer containing the number of the subject (name of the subject directory)
-	# Files that are read in:
-	# - info.json
-	# Returns dictionary object containing the ingested JSON object
-	def getSubjectInfoJSON(self, subject):
-		with open(self.getSubjectPath(subject) + '/info.json') as f:
-			subjectInfo = json.load(f)
-		return subjectInfo
-
 	# getImage
 	# Reads in image from file
-	# subjeect - Integer containing subject number from which to collect the frame
-	# frame - Integer containing the frame number from which to extract eyes
+	# imagePath - path to image to retrieve
 	# Returns numpy array containing the image
-	def getImage(self, subject, frame):
+	def getImage(self, imagePath):
 		return 	cv2.imread(
 			self.getSubjectPath(subject) + 
 			'/frames/' + 
@@ -202,47 +280,63 @@ class DataPreProcessor:
 	# Creates the properly formatted (cropped and scaled) images of the
 	# face, left eye, and right eye
 	# Arguments:
-	# subjeect - Integer containing subject number from which to collect the frame
-	# frame - List containing the frame numbers from which to extract features
+	# imagePath - List of the paths of the images to retrieve
 	# Returns 4D 3 NumPy arrays containing the images (image, x, y, channel)
-	def getInputImages(self, subject, frames):
+	def getInputImages(self, imagePaths):
 		#Desired size of images after processing
 		desiredImageSize = 224
 
-		#Reading in data about face and eyes from JSON files
-		faceJSON = self.getFaceJSON(subject)
-		leftEyeJSON, rightEyeJSON = self.getEyesJSON(subject)
-
 		#Creating numpy arrays to store images
-		faceImages = np.zeros((len(frames), desiredImageSize, desiredImageSize, 3))
-		leftEyeImages =  np.zeros((len(frames), desiredImageSize, desiredImageSize, 3)) 
-		rightEyeImages =  np.zeros((len(frames), desiredImageSize, desiredImageSize, 3))
-		for i, frame in enumerate(frames):
+		faceImages = np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3))
+		leftEyeImages =  np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3)) 
+		rightEyeImages =  np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3))
+		
+		#Iterate over all imagePaths to retrieve images
+		for i, frame in enumerate(imagePaths):
 			#Reading in frame from file
 			image = self.getImage(subject, frame)
 
+			faceMeta = {}
+			leftEyeMeta = {}
+			rightEyeMeta = {}
+
+			#Retrieve metadata about given frame
+			if frame in self.trainMetaData:
+				faceMeta = self.trainMetaData[frame]['face']
+				leftEyeMeta = self.trainMetaData[frame]['leftEye']
+				rightEyeMeta = self.trainMetaData[frame]['rightEye']
+			elif frame in self.validateMetaData:
+				faceMeta = self.validateMetaData[frame]['face']
+				leftEyeMeta = self.validateMetaData[frame]['leftEye']
+				rightEyeMeta = self.validateMetaData[frame]['rightEye']
+			else:
+				faceMeta = self.testMetaData[frame]['face']
+				leftEyeMeta = self.testMetaData[frame]['leftEye']
+				rightEyeMeta = self.testMetaData[frame]['rightEye']
+
+
 			#Crop image of face from original frame
-			xFace = int(faceJSON['X'][frame])
-			yFace = int(faceJSON['Y'][frame])
-			wFace = int(faceJSON['W'][frame])
-			hFace = int(faceJSON['H'][frame])
+			xFace = int(faceMeta['X'])
+			yFace = int(faceMeta['Y'])
+			wFace = int(faceMeta['W'])
+			hFace = int(faceMeta['H'])
 			faceImage = self.crop(image, xFace, yFace, wFace, hFace)
 
 			#Crop image of left eye
 			#JSON file specifies position eye relative to face
 			#Therefore, we must transform to make coordinates
 			#Relative to pictuer by adding coordinates of face
-			x = int(leftEyeJSON['X'][frame]) + xFace
-			y = int(leftEyeJSON['Y'][frame]) + yFace
-			w = int(leftEyeJSON['W'][frame])
-			h = int(leftEyeJSON['H'][frame])
+			x = int(leftEyeMeta['X']) + xFace
+			y = int(leftEyeMeta['Y'])+ yFace
+			w = int(leftEyeMeta['W'])
+			h = int(leftEyeMeta['H'])
 			leftEyeImage = self.crop(image, x, y, w, h)
 
 			#Right Eye
-			x = int(rightEyeJSON['X'][frame]) + xFace
-			y = int(rightEyeJSON['Y'][frame]) + yFace
-			w = int(rightEyeJSON['W'][frame])
-			h = int(rightEyeJSON['H'][frame])
+			x = int(rightEyeMeta['X']) + xFace
+			y = int(rightEyeMeta['Y']) + yFace
+			w = int(rightEyeMeta['W'])
+			h = int(rightEyeMeta['H'])
 			rightEyeImage = self.crop(image, x, y, w, h)
 
 			#Resize images to 224x224 to pass to neural network
@@ -265,22 +359,27 @@ class DataPreProcessor:
 	# getFaceGrids
 	# Extract the faceGrid information from JSON to numpy array
 	# Arguments:
-	# subjeect - Integer containing subject number from which to collect the frame
-	# frames - List containing the frame numbers from which to extract eyes
+	# imagePath - List of the paths of the images to retrieve
 	# Returns a 2D NumPy array containing the faceGrid (framesx625)
-	def getFaceGrids(self, subject, frames):
+	def getFaceGrids(self, imagePaths):
 		#Size of the facegrid output
 		faceGridSize = 625
 
-		#Reading in data facegrid data
-		faceGridJSON = self.getFaceGridJSON(subject)
+		faceGrids = np.zeros((len(imagePaths), faceGridSize))
+		for frameNum, frame in enumerate(imagePaths):
+			faceGridMeta = {}
+			#Retrieve metadata about given frame
+			if frame in self.trainMetaData:
+				faceGridMeta = self.trainMetaData[frame]['faceGrid']
+			elif frame in self.validateMetaData:
+				faceGridMeta = self.validateMetaData[frame]['faceGrid']
+			else:
+				faceGridMeta = self.testMetaData[frame]['faceGrid']
 
-		faceGrids = np.zeros((len(frames), faceGridSize))
-		for frameNum, frame in enumerate(frames):
-			x = faceGridJSON['X'][frame]
-			y = faceGridJSON['Y'][frame]
-			w = faceGridJSON['W'][frame]
-			h = faceGridJSON['H'][frame]
+			x = faceGridMeta['X']
+			y = faceGridMeta['Y']
+			w = faceGridMeta['W']
+			h = faceGridMeta['H']
 
 			#Create 5x5 array of zeros
 			faceGrid = np.zeros((25, 25))
@@ -299,14 +398,20 @@ class DataPreProcessor:
 	# getLabels
 	# Extract the x and y location of the gaze relative to the camera Frame of Reference
 	# Arguments:
-	# subjeect - Integer containing subject number from which to collect the frame
-	# frame - List containing the frame numbers from which to extract eyes
+	# imagePath - List of the paths of the images to retrieve
 	# Returns a (framesx2) numpy array containing the x and y location of the targets relative to camera
-	def getLabels(self, subject, frames):
-		dotJSON = self.getDotJSON(subject)
-		labels = np.zeros((len(frames), 2))
-		for i, frame in enumerate(frames):
-			labels[i] = np.array([dotJSON['XCam'][frame], dotJSON['YCam'][frame]])
+	def getLabels(self, imagePaths):
+		labels = np.zeros((len(imagePaths), 2))
+		for i, frame in enumerate(imagePaths):
+			labelMeta = {}
+			#Retrieve metadata about given frame
+			if frame in self.trainMetaData:
+				labelMeta = self.trainMetaData[frame]['label']
+			elif frame in self.validateMetaData:
+				labelMeta = self.validateMetaData[frame]['label']
+			else:
+				labelMeta = self.testMetaData[frame]['label']
+			labels[i] = np.array([labelMeta['XCam'], labelMeta['YCam']])
 		return labels
 
 	# getMaxFrames
@@ -469,6 +574,8 @@ class DataPreProcessor:
 # inputs, labels, meta =  pp.generateBatch()
 # pp.displayBatch(inputs, labels, meta)
 
-pp = DataPreProcessor('data/zip')
+pp = DataPreProcessor('data/zip', 0.8, 0.15)
+input()
+pp.cleanup()
 
 
