@@ -120,8 +120,8 @@ class DataPreProcessor:
 
 		#Initializing other variables
 		#Used to store the frames that have already been samples this epoch
-		self.sampledTrainFrames = []
-		self.sampledValidateFrames = []
+		self.sampledTrainFrames = set()
+		self.sampledValidateFrames = set()
 
 		
 	def cleanup(self):
@@ -155,7 +155,7 @@ class DataPreProcessor:
 				#Check if cur frame is valid
 				if(fv*lv*rv*fgv == 1):
 					#Generate path for frame
-					framePath = subjectPath + "/" + frame
+					framePath = subjectPath + "/frames/" + frame
 					#Write file path to index
 					frameIndex.append(framePath)
 					#Build the dictionary containing the metadata for a frame
@@ -164,9 +164,9 @@ class DataPreProcessor:
 						'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
 						'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
 						'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
-						'label': ['XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]]
+						'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
 					}
-		return frameIndex, metadata
+		return set(frameIndex), metadata
 
 	# getFramesJOSN
 	# Loads frames.json to a dictionary
@@ -238,11 +238,7 @@ class DataPreProcessor:
 	# imagePath - path to image to retrieve
 	# Returns numpy array containing the image
 	def getImage(self, imagePath):
-		return 	cv2.imread(
-			self.getSubjectPath(subject) + 
-			'/frames/' + 
-			self.num2Str(frame, 5) + 
-			'.jpg')
+		return 	cv2.imread(imagePath)
 
 
 
@@ -294,7 +290,7 @@ class DataPreProcessor:
 		#Iterate over all imagePaths to retrieve images
 		for i, frame in enumerate(imagePaths):
 			#Reading in frame from file
-			image = self.getImage(subject, frame)
+			image = self.getImage(frame)
 
 			faceMeta = {}
 			leftEyeMeta = {}
@@ -314,30 +310,59 @@ class DataPreProcessor:
 				leftEyeMeta = self.testMetaData[frame]['leftEye']
 				rightEyeMeta = self.testMetaData[frame]['rightEye']
 
-
 			#Crop image of face from original frame
 			xFace = int(faceMeta['X'])
 			yFace = int(faceMeta['Y'])
 			wFace = int(faceMeta['W'])
 			hFace = int(faceMeta['H'])
-			faceImage = self.crop(image, xFace, yFace, wFace, hFace)
+
 
 			#Crop image of left eye
 			#JSON file specifies position eye relative to face
 			#Therefore, we must transform to make coordinates
-			#Relative to pictuer by adding coordinates of face
-			x = int(leftEyeMeta['X']) + xFace
-			y = int(leftEyeMeta['Y'])+ yFace
-			w = int(leftEyeMeta['W'])
-			h = int(leftEyeMeta['H'])
-			leftEyeImage = self.crop(image, x, y, w, h)
+			#Relative to picture by adding coordinates of face
+			xLeft = int(leftEyeMeta['X']) + xFace
+			yLeft = int(leftEyeMeta['Y']) + yFace
+			wLeft = int(leftEyeMeta['W'])
+			hLeft = int(leftEyeMeta['H'])
 
 			#Right Eye
-			x = int(rightEyeMeta['X']) + xFace
-			y = int(rightEyeMeta['Y']) + yFace
-			w = int(rightEyeMeta['W'])
-			h = int(rightEyeMeta['H'])
-			rightEyeImage = self.crop(image, x, y, w, h)
+			xRight = int(rightEyeMeta['X']) + xFace
+			yRight = int(rightEyeMeta['Y']) + yFace
+			wRight = int(rightEyeMeta['W'])
+			hRight = int(rightEyeMeta['H'])
+			print(frame)
+			#Bound checking - ensure x & y are >= 0
+			if(xFace < 0):
+				print('FACEX')
+				wFace = wFace + xFace
+				xFace = 0
+			if(yFace < 0):
+				print('FACEY')
+				hFace = hFace + yFace
+				yFace = 0
+			if(xLeft < 0):
+				print('LEFTX')
+				wLeft = wLeft + xLeft
+				xLeft = 0
+			if(yLeft < 0):
+				print('LEFTY')
+				hLeft = hLeft + yLeft
+				yLeft = 0
+			if(xRight < 0):
+				print('RIGHTX')
+				wRight = wRight + xRight
+				xRight = 0
+			if(yRight < 0):
+				print('RIGHTY')
+				hRight = hRight + yRight
+				yRight = 0
+
+
+			#Retrieve cropped images
+			faceImage = self.crop(image, xFace, yFace, wFace, hFace)
+			leftEyeImage = self.crop(image, xLeft, yLeft, wLeft, hLeft)
+			rightEyeImage = self.crop(image, xRight, yRight, wRight, hRight)
 
 			#Resize images to 224x224 to pass to neural network
 			faceImage = self.resize(faceImage, desiredImageSize)
@@ -471,54 +496,40 @@ class DataPreProcessor:
 	# 	The labels are the x & y location of gaze relative to camera.
 	# Numpy array containing metadata for batch (batchSize, 2)
 	# 	Metadata describes the subject and frame number for each image 
-	def generateBatch(self):
-		#Intializing numpy array for output batches
-		#metaBatch containsL:
-		# subject number - indeex 0
-		# frame number - index 1
-		metaBatch = np.zeros((self.batchSize, 2))
-		faceBatch = np.zeros((self.batchSize, 224, 224, 3))
-		leftEyeBatch = np.zeros((self.batchSize, 224, 224, 3))
-		rightEyeBatch = np.zeros((self.batchSize, 224, 224, 3))
-		faceGridBatch = np.zeros((self.batchSize, 625))
-		labelsBatch = np.zeros((self.batchSize, 2))
+	def generateTrainingBatch(self, batchSize, dataset):		
+		#Determine frames that have been unused in this epoch
+		#by subtracting the sampledTrainFrames from trainFrameIndex  
+		unusedFrames = self.trainFrameIndex - self.sampledTrainFrames
 
-		#Keeps count of the number of frames collected in batch
-		numSamples = 0
-		while(numSamples < self.batchSize):
-			#Randomly select a subject
-			subject = random.randint(0, self.numSubjects-1)
+		if(len(unusedFrames) > batchSize):  
+			#Collect batchSize number of  random frames
+			framesToRetrieve = set(random.sample(unusedFrames, batchSize)) 
+			#Mark frames in current batch as used
+			self.sampledTrainFrames = self.sampledTrainFrames | framesToRetrieve
+		elif(len(unusedFrames) == batchSize):
+			framesToRetrieve = unusedFrames
+			#Clear sampled trained frames since all frames have now been sampled in this epoch
+			self.sampledTrainFrames = set()
+		else: #Number of reamining frames will not fill batch
+			framesToRetrieve = unusedFrames
+			#Clear sampled trained frames since all frames have now been sampled in this epoch
+			self.sampledTrainFrames = set()
+			#Determine frames that have already been included in this batch
+			unusedFrames = self.trainFrameIndex - framesToRetrieve
+			#Retrieve enough frames to fill the rest of the batch
+			framesToRetrieve = framesToRetrieve | set(random.sample(unusedFrames, batchSize - len(framesToRetrieve)))
+			#Mark frames in current batch as used
+			self.sampledTrainFrames = self.sampledTrainFrames | framesToRetrieve
 
-			#Select random number of frames where 2 <= num <= maxFrames
-			numFrames = random.randint(2, self.getMaxFrames(subject))
+		#Generating batches here
+		#Convert set framesToRetrieve to list so that order is preserved for all data
+		framesToRetrieve = list(framesToRetrieve)
 
-			#Truncate number of frames if batch size will be exceeded
-			if(numSamples + numFrames > self.batchSize):
-				numFrames = self.batchSize - numSamples
+		metaBatch = np.array(framesToRetrieve)
+		faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve)
+		faceGridBatch = self.getFaceGrids(framesToRetrieve)
+		labelsBatch = self.getLabels(framesToRetrieve)
 
-			#Select numFrames valid frames
-			frames = self.selectRandomFrames(subject, numFrames)
-			#Retrieve images and facegrids for the selected frames
-			face, left, right = self.getInputImages(subject, frames)
-			faceGrid = self.getFaceGrids(subject, frames)
-			labels = self.getLabels(subject, frames)
-
-			#Iterating over all collected data and adding to batch
-			# fr - frame
-			# f - face
-			# l - left
-			# r - right
-			# fg = facegrid
-			# lb - labels
-			for fr, f, l, r, fg, lb in zip(frames, face, left, right, faceGrid, labels):
-				metaBatch[numSamples][0] = subject
-				metaBatch[numSamples][1] = fr 
-				faceBatch[numSamples] = f
-				leftEyeBatch[numSamples] = l
-				rightEyeBatch[numSamples] = r
-				faceGridBatch[numSamples] = fg
-				labelsBatch[numSamples] = lb
-				numSamples = numSamples + 1
 		return {
 					'face' : faceBatch, 
 					'leftEye' : leftEyeBatch, 
@@ -545,24 +556,19 @@ class DataPreProcessor:
 													meta)):
 			#Title String
 			title =  'Image #' + str(i) 
-			title += ': Subject ' + str(meta[0]) 
-			title += ', Frame ' + str(meta[1]) 
-
+			title += ': Subject ' + str(meta)
 			print(title)
-
-			#Draw facegrid here
-			print('FACEGRID')
-			for j in range(0,25):
-				for k in range(0,25):
-					print(int(fg[k+25*j]), end='')
-				print('')
 
 			print('LABELS')
 			print(lb)
+			fgDisplay = cv2.resize(np.reshape(fg, (25,25)), (224,224))
+			fgDisplay = np.stack((fgDisplay, fgDisplay, fgDisplay), axis = 2)
+			
 			#Place 3 images side by side to display
-			output = np.concatenate((f, l, r), axis = 1)
+			output = np.concatenate((f, fgDisplay, l, r), axis = 1)
 			#Show images
 			cv2.imshow(title, output)
+
 
 			#Wait for key input
 			key = cv2.waitKey(0)
@@ -570,12 +576,12 @@ class DataPreProcessor:
 				break
 			cv2.destroyAllWindows()
 	
-# pp = DataPreProcessor(2, 50, 10)
-# inputs, labels, meta =  pp.generateBatch()
-# pp.displayBatch(inputs, labels, meta)
+
 
 pp = DataPreProcessor('data/zip', 0.8, 0.15)
-input()
+inputs, labels, meta = pp.generateTrainingBatch(50)
+pp.displayBatch(inputs, labels, meta)
+
 pp.cleanup()
 
 
