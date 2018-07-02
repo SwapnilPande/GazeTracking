@@ -20,7 +20,13 @@ class DataPreProcessor:
 	# trainProportion - Proportion of data to make training data
 	# validationProportion - Proportion of data to make validation data
 	# Note: trainProportion + validateProportion must be <= 1. Remaining percentage
-	# is used as training data 
+	# frameIndex, metadat, sampledFrames each contain three keys: train, validate, test
+	# each key represents a dataset
+	# frameIndex - stores sets that contain the filepaths for all valid frames within dataset
+	# metadata - stores dictionaries whose keys are the filepaths for valid frame
+	# 			each dictionary contains 5 keys: face, leftEye, rightEye, faceGrid, and label
+	#			each of these keys refers to a dictionary containing the necessary metadata to describe feature
+	# sampledFrames - stores sets that described the data that has already been sampled in the current epoch
 	def __init__(self, pathToData, trainProportion, validateProportion):
 		self.trainProportion = trainProportion
 		self.validateProportion = validateProportion
@@ -128,12 +134,32 @@ class DataPreProcessor:
 			'test' : set()
  		}
 
-		
+	# cleanup
+	# Should be called at the time of destroying the Preprocessor object
+	# Deletes the temporary directory from the filesystem
 	def cleanup(self):
 		print('Removing temp directory...')
 		shutil.rmtree(self.tempDataDir)
 
-
+	# indexData
+	# Builds an index of the data for a dataset and a dictionary containing the metadata
+	# The index is stored in a set, and contains the filepaths for each valid frame in the dataset
+	# The metadata dictionary has the filepaths for each frame as keys.
+	# Each frame in the dictionary is another dictionary containing
+	#  5 keys corresponding to features for that frame
+	# The value for the key is a dictionary of the critical metadata for that key
+	# The keys and metadata include:
+	# 'face' : X, Y, H, W
+	# 'leftEye' : X, Y, H, W
+	# 'rightEye' : X, Y, H, W
+	# 'faceGrid' : X, Y, H, W
+	# 'label' : XCam, YCam
+	# XCam and YCam are the locations of the target relative to the camera
+	# Arguments:
+	# path - Path to the directory containing all of the subject dirs for a dataset
+	# Returns:
+	# frameIndex - A set containing the filepaths to all valid frames in the dataset
+	# metadata = A dictionary containing the metadata for each frame
 	def indexData(self, path):
 		#Getting unzipped subject dirs
 		subjectDirs = os.listdir(path=path)
@@ -173,7 +199,7 @@ class DataPreProcessor:
 					}
 		return set(frameIndex), metadata
 
-	# getFramesJOSN
+	# getFramesJSON
 	# Loads frames.json to a dictionary
 	# this file contains the names fo the frames in the directory
 	# Arguments:
@@ -189,7 +215,7 @@ class DataPreProcessor:
 	# getFaceJSON
 	# Collects data about face for a specific subject from the json files
 	# Arguments:
-	# Subject - Integer containing the number of the subject (name of the subject directory)
+	# subjectPath - Path to unzipped root directory of the subject
 	# Files that are read in:
 	# - appleFace.json
 	# Returns dictionary objects containing the ingested JSON object
@@ -201,7 +227,7 @@ class DataPreProcessor:
 	# getEyes
 	# Collects data about eyes (left & right) for a specific subject from the json files
 	# Arguments:
-	# Subject - Integer containing the number of the subject (name of the subject directory)
+	# subjectPath - Path to unzipped root directory of the subject
 	# Files that are read in:
 	# - appleLeftEye.json
 	# - appleRightEye.json
@@ -216,7 +242,7 @@ class DataPreProcessor:
 	# getFaceGrid
 	# Collects data about the facegrid for a specific subject from the json files
 	# Arguments:
-	# Subject - Integer containing the number of the subject (name of the subject directory)
+	# subjectPath - Path to unzipped root directory of the subject
 	# Files that are read in:
 	# - faceGrid.json
 	# Returns dictionary object containing the ingested JSON object
@@ -229,7 +255,7 @@ class DataPreProcessor:
 	# Collects data about dot (target subject is looking at) for a specific subject 
 	# from the json files
 	# Arguments:
-	# Subject - Integer containing the number of the subject (name of the subject directory)
+	# subjectPath - Path to unzipped root directory of the subject
 	# Files that are read in:
 	# - dotInfo.json
 	# Returns dictionary object containing the ingested JSON object
@@ -282,6 +308,8 @@ class DataPreProcessor:
 	# face, left eye, and right eye
 	# Arguments:
 	# imagePath - List of the paths of the images to retrieve
+	# dataset - String describing the dataset that the iamges come from
+	# 			3 possible values: 'train', 'validate', 'test' 
 	# Returns 4D 3 NumPy arrays containing the images (image, x, y, channel)
 	def getInputImages(self, imagePaths, dataset):
 		#Desired size of images after processing
@@ -366,6 +394,8 @@ class DataPreProcessor:
 	# Extract the faceGrid information from JSON to numpy array
 	# Arguments:
 	# imagePath - List of the paths of the images to retrieve
+	# dataset - String describing the dataset that the iamges come from
+	# 			3 possible values: 'train', 'validate', 'test' 	
 	# Returns a 2D NumPy array containing the faceGrid (framesx625)
 	def getFaceGrids(self, imagePaths,dataset):
 		#Size of the facegrid output
@@ -396,7 +426,9 @@ class DataPreProcessor:
 	# getLabels
 	# Extract the x and y location of the gaze relative to the camera Frame of Reference
 	# Arguments:
-	# imagePath - List of the paths of the images to retrieve
+	# imagePaths - List of the paths of the images to retrieve
+	# dataset - String describing the dataset that the iamges come from
+	# 			3 possible values: 'train', 'validate', 'test' 
 	# Returns a (framesx2) numpy array containing the x and y location of the targets relative to camera
 	def getLabels(self, imagePaths, dataset):
 		labels = np.zeros((len(imagePaths), 2))
@@ -408,8 +440,11 @@ class DataPreProcessor:
 	# generateBatch
 	# Generates a batch of data to pass to ML model
 	# The batch contains batchSize number of frames
-	# A random number of frames (2 <= maxFrames < maxFrames)
-	# are selected from randomly selected participants
+	# Frames are randomly selected from entire dataset
+	# Arguments:
+	# batchSize - Number of frames to put in the output batch
+	# dataset - String describing the dataset that the iamges come from
+	# 			3 possible values: 'train', 'validate', 'test' 
 	# Returns:
 	# Dictionary containing the following keys
 	# - face: Numpy array containing batch of data for face (batchSize, 224, 224, 3)
@@ -502,13 +537,14 @@ class DataPreProcessor:
 	
 
 
-pp = DataPreProcessor('data/zip', 0.8, 0.15)
-inputs, labels, meta = pp.generateBatch(50, 'train')
-pp.displayBatch(inputs, labels, meta)
-inputs, labels, meta = pp.generateBatch(10, 'validate')
-pp.displayBatch(inputs, labels, meta)
+# pp = DataPreProcessor('data/zip', 0.8, 0.15)
+# input()
+# inputs, labels, meta = pp.generateBatch(50, 'train')
+# pp.displayBatch(inputs, labels, meta)
+# inputs, labels, meta = pp.generateBatch(10, 'validate')
+# pp.displayBatch(inputs, labels, meta)
 
 
-pp.cleanup()
+# pp.cleanup()
 
 
