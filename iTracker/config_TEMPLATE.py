@@ -1,2 +1,2 @@
-def run_config:
+def run_config():
 	
