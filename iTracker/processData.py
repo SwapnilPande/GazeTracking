@@ -458,10 +458,16 @@ class DataPreProcessor:
 			#Subtracting 1 in range because facegrid is 1 indexed
 			xBound = x-1+w
 			yBound = y-1+h
+
+			if(x < 0): #Flooring x & y to zero
+				x = 0 
+			if(y < 0):
+				y = 0
 			if(xBound > 25): #Capping maximum value of x & y to 25
 				xBound = 25
 			if(yBound > 25):
 				yBound = 25
+
 			for i in range(x-1,xBound):
 				for j in range(y-1,yBound):
 					faceGrid[j][i] = 1
