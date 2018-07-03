@@ -1,0 +1,15 @@
+{
+	"learningRate" : ,
+	"momentum" :, 
+	"decay" : ,
+	"numEpochs" : ,
+	"trainBatchSize" : ,
+	"validateBatchSize" : ,
+	"testBatchSize" : ,
+
+	"trainSetProportion" : ,
+	"validateSetProportion" : ,
+
+	"pathToData" : ""
+
+}

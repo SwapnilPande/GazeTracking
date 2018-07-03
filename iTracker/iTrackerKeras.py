@@ -14,6 +14,26 @@ from keras.optimizers import SGD
 #Custom datset processor
 from processData import DataPreProcessor
 
+import math
+
+import json #used to read config file
+
+#Define ML parameters
+with open('ml_param.json') as f:
+	paramJSON = json.load(f)
+	learningRate = paramJSON['learningRate']
+	momentum = paramJSON['momentum']
+	decay = paramJSON['decay']
+
+	numEpochs = paramJSON['numEpochs']
+	trainBatchSize = paramJSON['trainBatchSize']
+	validateBatchSize = paramJSON['validateBatchSize']
+	testBatchSize = paramJSON['testBatchSize']
+	trainSetProportion = paramJSON['trainSetProportion']
+	validateSetProportion = paramJSON['validateSetProportion']
+	pathToData = paramJSON['pathToData']
+
+
 
 #Defining input here
 leftEyeInput = Input(shape=(224,224,3,))
@@ -159,14 +179,27 @@ finalOutput = fullyConnected2(dataFullyConnected1)
 iTrackerModel = Model(inputs = [leftEyeInput, rightEyeInput, faceInput, faceGridInput], outputs = finalOutput)
 
 def getSGDOptimizer():
-	return SGD(lr=0.001, momentum=0.9, decay=0.0005)
+	return SGD(lr=learningRate, momentum=momentum, decay=decay)
 
 iTrackerModel.compile(getSGDOptimizer(), loss=['mean_squared_error'], metrics=['accuracy'])
 
 #Initialize Data pre-processor here
-pp = DataPreProcessor('data/zip', 0.8, 0.15)
+pp = DataPreProcessor(pathToData, trainSetProportion, validateSetProportion)
 
-iTrackerModel.fit_generator(pp.generateBatch(50, 'train'), epochs = 1, steps_per_epoch =int(pp.numTrainFrames/50))
+iTrackerModel.fit_generator(
+	pp.generateBatch(trainBatchSize, 'train'), 
+	epochs = numEpochs, 
+	steps_per_epoch = math.ceil(pp.numTrainFrames/trainBatchSize), 
+	validation_data = pp.generateBatch(validateBatchSize, 'validate'), 
+	validation_steps = math.ceil(pp.numValidateFrames/validateBatchSize)
+)
 
-
+testLoss = iTrackerModel.evaluate_generator(
+	pp.generateBatch(testBatchSize, 'test'),
+	steps = math.ceil(pp.numTestFrames/testBatchSize)
+)
+print()
+print("FINISHED MODEL TRAINING AND EVALUATION")
+print("Final test loss: " + int(testLoss))
+pp.cleanup()
 

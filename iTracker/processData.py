@@ -465,20 +465,10 @@ class DataPreProcessor:
 				framesToRetrieve = set(random.sample(unusedFrames, batchSize)) 
 				#Mark frames in current batch as used
 				self.sampledFrames[dataset] = self.sampledFrames[dataset] | framesToRetrieve
-			elif(len(unusedFrames) == batchSize):
+			else: #Not enough unused frames to fill batch. Returning remaining frames
 				framesToRetrieve = unusedFrames
 				#Clear sampled trained frames since all frames have now been sampled in this epoch
 				self.sampledFrames[dataset] = set()
-			else: #Number of reamining frames will not fill batch
-				framesToRetrieve = unusedFrames
-				#Clear sampled trained frames since all frames have now been sampled in this epoch
-				self.sampledFrames[dataset] = set()
-				#Determine frames that have already been included in this batch
-				unusedFrames = self.frameIndex[dataset] - framesToRetrieve
-				#Retrieve enough frames to fill the rest of the batch
-				framesToRetrieve = framesToRetrieve | set(random.sample(unusedFrames, batchSize - len(framesToRetrieve)))
-				#Mark frames in current batch as used
-				self.sampledFrames[dataset] = self.sampledFrames[dataset] | framesToRetrieve
 
 			#Generating batches here
 			#Convert set framesToRetrieve to list so that order is preserved for all data
