@@ -36,10 +36,36 @@ with open('ml_param.json') as f:
 	trainBatchSize = paramJSON['trainBatchSize']
 	validateBatchSize = paramJSON['validateBatchSize']
 	testBatchSize = paramJSON['testBatchSize']
+
 	trainSetProportion = paramJSON['trainSetProportion']
 	validateSetProportion = paramJSON['validateSetProportion']
-	pathToData = paramJSON['pathToData']
 
+	pathToData = paramJSON['pathToData']
+print()
+#Confirm ML Parameters
+print('Loaded following parameters from ml_param.json.')
+print('Learning Rate: ' + str(learningRate))
+print('Momentum: ' + str(momentum))
+print('Decay: ' + str(decay))
+print()
+print("Number of Epochs: " + str(numEpochs))
+print("Training Batch Size: " + str(trainBatchSize))
+print("Validation Batch Size: " + str(validateBatchSize))
+print("Test Batch Size: " + str(testBatchSize))
+print()
+print("Training Set Proportion: " + str(trainSetProportion))
+print('Validation Set Proportion: ' + str(validateSetProportion))
+print("Testing Set Proportion: " + str(1 - trainSetProportion - validateSetProportion))
+print()
+print('Path to data: ' + pathToData)
+print()
+print('Train with these parameters? (y/n)')
+response = input()
+while(response != 'y' and response != 'n'):
+	print("Enter only y or n:")
+	response = input()
+if(response == 'n'): #Delete directory
+	raise Exception('Incorrect training parameters. Modify ml_param.json')
 
 
 #Defining input here

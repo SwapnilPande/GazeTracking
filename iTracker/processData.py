@@ -50,7 +50,7 @@ class DataPreProcessor:
 		#Create data to store unzipped subject data
 		#Create three subdirectories to split train, validate, and test data
 		print('Creating temporary directory to store unzipped data')
-		self.tempDataDir = 'data/temp'
+		self.tempDataDir = 'temp'
 		self.trainDir = self.tempDataDir + '/train'
 		self.validateDir = self.tempDataDir + '/validate'
 		self.testDir = self.tempDataDir + '/test'
