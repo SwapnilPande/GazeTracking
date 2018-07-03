@@ -6,6 +6,9 @@ import os
 import shutil
 import tarfile
 
+#Used to display progress bars for file init
+from progressbar import ProgressBar 
+
 
 
 
@@ -17,6 +20,7 @@ class DataPreProcessor:
 	# Initializes the pre=processor by unzipping all of the user data to a temp directory
 	# and building an index of valid frames and the respective metadata
 	# pathToData - Path to the dir containing the zipped subject data
+	# pathTemp, - Path to directory in which to create temp dir
 	# trainProportion - Proportion of data to make training data
 	# validationProportion - Proportion of data to make validation data
 	# Note: trainProportion + validateProportion must be <= 1. Remaining percentage
@@ -27,7 +31,7 @@ class DataPreProcessor:
 	# 			each dictionary contains 5 keys: face, leftEye, rightEye, faceGrid, and label
 	#			each of these keys refers to a dictionary containing the necessary metadata to describe feature
 	# sampledFrames - stores sets that described the data that has already been sampled in the current epoch
-	def __init__(self, pathToData, trainProportion, validateProportion):
+	def __init__(self, pathToData, pathTemp, trainProportion, validateProportion):
 		self.trainProportion = trainProportion
 		self.validateProportion = validateProportion
 		self.testProportion = 1 - trainProportion - validateProportion
@@ -50,7 +54,7 @@ class DataPreProcessor:
 		#Create data to store unzipped subject data
 		#Create three subdirectories to split train, validate, and test data
 		print('Creating temporary directory to store unzipped data')
-		self.tempDataDir = 'temp'
+		self.tempDataDir = pathTemp + '/temp'
 		self.trainDir = self.tempDataDir + '/train'
 		self.validateDir = self.tempDataDir + '/validate'
 		self.testDir = self.tempDataDir + '/test'
@@ -85,7 +89,10 @@ class DataPreProcessor:
 		print('Splitting data into training, validation, and test sets')
 		#Randomize order of subjects to randomize test, training, and validations ets
 		random.shuffle(subjectDirs)
-		for i, subject in enumerate(subjectDirs):
+		#Init Progress bar
+		pbar = ProgressBar(maxval=len(subjectDirs))
+		pbar.start()
+		for i, subject in pbar(enumerate(subjectDirs)):
 			if(i < self.numTrainSubjects): #Write to training data folder
 				with tarfile.open(subject, 'r:*') as f:
 					f.extractall(self.trainDir)
@@ -95,6 +102,8 @@ class DataPreProcessor:
 			else: #Test folder
 				with tarfile.open(subject, 'r:*') as f:
 					f.extractall(self.testDir)
+			pbar.update(i)
+		pbar.finish()
 		print("Number of training subjects: " + str(self.numTrainSubjects))
 		print('Number of validation subjects: ' + str(self.numValidateSubjects))
 		print('Number of test subjects: ' + str(self.numTestSubjects))
@@ -167,7 +176,8 @@ class DataPreProcessor:
 		#Declare index lists and metadata dictionary to return
 		frameIndex = []
 		metadata = {}
-		for subject in subjectDirs:
+		pbar = ProgressBar()
+		for subject in pbar(subjectDirs):
 			subjectPath = path + "/" + subject
 			#Stores the name of the frame files in the frames dir
 			frameNames = self.getFramesJSON(subjectPath)

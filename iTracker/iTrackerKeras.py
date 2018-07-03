@@ -41,6 +41,7 @@ with open('ml_param.json') as f:
 	validateSetProportion = paramJSON['validateSetProportion']
 
 	pathToData = paramJSON['pathToData']
+	pathTemp = paramJSON['pathToTempDir']
 print()
 #Confirm ML Parameters
 print('Loaded following parameters from ml_param.json.')
@@ -58,6 +59,7 @@ print('Validation Set Proportion: ' + str(validateSetProportion))
 print("Testing Set Proportion: " + str(1 - trainSetProportion - validateSetProportion))
 print()
 print('Path to data: ' + pathToData)
+print('Path to create temp directory: ' + pathTemp)
 print()
 print('Train with these parameters? (y/n)')
 response = input()
@@ -219,8 +221,7 @@ def getSGDOptimizer():
 iTrackerModel.compile(getSGDOptimizer(), loss=['mean_squared_error'], metrics=['accuracy'])
 
 #Initialize Data pre-processor here
-pp = DataPreProcessor(pathToData, trainSetProportion, validateSetProportion)
-
+pp = DataPreProcessor(pathToData, pathTemp, trainSetProportion, validateSetProportion)
 iTrackerModel.fit_generator(
 	pp.generateBatch(trainBatchSize, 'train'), 
 	epochs = numEpochs, 

@@ -9,6 +9,7 @@ name = "pypi"
 tensorflow-gpu = "*"
 keras = "*"
 opencv-python = "*"
+progressbar = "*"
 
 [requires]
 python_version = "3.6"
