@@ -8,7 +8,8 @@ TensorFlow is the machine learning package used to build and train the model. Fo
 NOTE: If you only want to install TensorFlow within this virtual environment complete all steps until you reach the ```pip install``` commands for tensorflow. The necessary TensorFlow dependency will automatically be installed within the virtual environment.
 
 ### Keras
-(NOTE: Skip these instructions if you only want to install Keras within this virtual environment)
+NOTE: Skip these instructions if you only want to install Keras within this virtual environment
+
 Keras is the high-level neural network API used to recreate the iTracker neural network. Follow the installation instructions found [here](https://keras.io/#installation). The TensorFlow backend is used for this implementation. Since Keras is supports multiple backends, the implementation should also be compatible with Theano (untested).
 
 ### Python Dependencies
