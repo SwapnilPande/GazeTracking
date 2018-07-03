@@ -58,13 +58,31 @@ class DataPreProcessor:
 		self.trainDir = self.tempDataDir + '/train'
 		self.validateDir = self.tempDataDir + '/validate'
 		self.testDir = self.tempDataDir + '/test'
+
+		#Number of training, validation, and test subjects
+		self.numTrainSubjects = round(trainProportion*self.numSubjects)
+		self.numValidateSubjects = round(validateProportion*self.numSubjects)
+		self.numTestSubjects = self.numSubjects - self.numTrainSubjects - self.numValidateSubjects
+		#Flag to store whether or not to use existing data in temp dir
+		useExistingData = False
 		try:
 			os.mkdir(self.tempDataDir)
 			os.mkdir(self.trainDir)
 			os.mkdir(self.validateDir)
 			os.mkdir(self.testDir)
 		except FileExistsError: #Temp directory already exists
-			print('Temporary directory already exists. Clean directory? (y/n)')
+			#First determine how many subjects exist to give data to user
+			numExistTrain = len(os.listdir(self.trainDir))
+			numExistValidate = len(os.listdir(self.validateDir))
+			numExistTest = len(os.listdir(self.testDir))
+			totalExist = numExistTest + numExistTrain + numExistValidate
+			print('Temporary directory already exists with following data')
+			print("\tTotal number of subjects: " + str(totalExist))
+			print('\tNumber of training subjects: ' + str(numExistTrain) + " (" + str(numExistTrain/totalExist) + ")")
+			print('\tNumber of validation subjects: ' + str(numExistValidate) + "( " + str(numExistValidate/totalExist) + ")")
+			print('\tNumber of test subjects: ' + str(numExistTest) + " (" + str(numExistTest/totalExist) + ")")			
+			print()
+			print('Remove data and unpack fresh data? (y/n)')
 			response = input()
 			while(response != 'y' and response != 'n'):
 				print("Enter only y or n:")
@@ -76,38 +94,46 @@ class DataPreProcessor:
 				os.mkdir(self.validateDir)
 				os.mkdir(self.testDir)
 			else:
-				raise FileExistsError('Cannot operate on non-empty temp directory. Clean directory or select a new directory.')
+				print('Use Existing data? (y/n)')
+				response = input()
+				while(response != 'y' and response != 'n'):
+					print("Enter only y or n:")
+					response = input()
+				if(response == 'y'): #Using existing data, no need to unpack new data
+					useExistingData = True
+					print("Using existing data. Ignoring train and validate proportions provided and using existing distribution.")
+					self.numTrainSubjects = numExistTrain
+					self.numValidateSubjects = numExistValidate
+					self.numTestSubjects = numExistTest
+					self.numSubjects = totalExist
+				else: #Cannot unpack or use existing, exit program
+					raise FileExistsError('Cannot operate on non-empty temp directory. Clean directory or select a new directory.')
 		print()
-
-		#Number of training, validation, and test subjects
-		self.numTrainSubjects = round(trainProportion*self.numSubjects)
-		self.numValidateSubjects = round(validateProportion*self.numSubjects)
-		self.numTestSubjects = self.numSubjects - self.numTrainSubjects - self.numValidateSubjects
-
-		#Unzip data for all subjects, write to temp directory
-		print('Unpacking subject data into temporary directory: ./' + self.tempDataDir)
-		print('Splitting data into training, validation, and test sets')
-		#Randomize order of subjects to randomize test, training, and validations ets
-		random.shuffle(subjectDirs)
-		#Init Progress bar
-		pbar = ProgressBar(maxval=len(subjectDirs))
-		pbar.start()
-		for i, subject in pbar(enumerate(subjectDirs)):
-			if(i < self.numTrainSubjects): #Write to training data folder
-				with tarfile.open(subject, 'r:*') as f:
-					f.extractall(self.trainDir)
-			elif(i < self.numTrainSubjects + self.numValidateSubjects): #Validation folder
-				with tarfile.open(subject, 'r:*') as f:
-					f.extractall(self.validateDir)
-			else: #Test folder
-				with tarfile.open(subject, 'r:*') as f:
-					f.extractall(self.testDir)
-			pbar.update(i)
-		pbar.finish()
-		print("Number of training subjects: " + str(self.numTrainSubjects))
-		print('Number of validation subjects: ' + str(self.numValidateSubjects))
-		print('Number of test subjects: ' + str(self.numTestSubjects))
-		print()
+		if(not useExistingData): #Need to unpack new data
+			#Unzip data for all subjects, write to temp directory
+			print('Unpacking subject data into temporary directory: ' + self.tempDataDir)
+			print('Splitting data into training, validation, and test sets')
+			#Randomize order of subjects to randomize test, training, and validations ets
+			random.shuffle(subjectDirs)
+			#Init Progress bar
+			pbar = ProgressBar(maxval=len(subjectDirs))
+			pbar.start()
+			for i, subject in pbar(enumerate(subjectDirs)):
+				if(i < self.numTrainSubjects): #Write to training data folder
+					with tarfile.open(subject, 'r:*') as f:
+						f.extractall(self.trainDir)
+				elif(i < self.numTrainSubjects + self.numValidateSubjects): #Validation folder
+					with tarfile.open(subject, 'r:*') as f:
+						f.extractall(self.validateDir)
+				else: #Test folder
+					with tarfile.open(subject, 'r:*') as f:
+						f.extractall(self.testDir)
+				pbar.update(i)
+			pbar.finish()
+			print("Number of training subjects: " + str(self.numTrainSubjects))
+			print('Number of validation subjects: ' + str(self.numValidateSubjects))
+			print('Number of test subjects: ' + str(self.numTestSubjects))
+			print()
 
 		#Build index of metadata for each frame of training, validation, and testing data
 		#Stores the paths to all valid frames (training)
@@ -147,8 +173,15 @@ class DataPreProcessor:
 	# Should be called at the time of destroying the Preprocessor object
 	# Deletes the temporary directory from the filesystem
 	def cleanup(self):
-		print('Removing temp directory...')
-		shutil.rmtree(self.tempDataDir)
+		print('Cleanup unpacked data? (y/n)')
+		response = input()
+		while(response != 'y' and response != 'n'):
+			print("Enter only y or n: ")
+			response = input()
+		if(response == 'y'):
+			print('Removing temp directory...')
+			shutil.rmtree(self.tempDataDir)
+		print("Exiting program")
 
 	# indexData
 	# Builds an index of the data for a dataset and a dictionary containing the metadata

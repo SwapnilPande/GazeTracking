@@ -11,6 +11,9 @@
 	"validateSetProportion" : ,
 
 	"pathToData" : "",
-	"pathToTempDir" : ""
+	"pathToTempDir" : "",
+	
+	"loadPrexistingModel" : false,
+	"prexistingModelPath" : ""
 
 }
