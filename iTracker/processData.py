@@ -456,8 +456,14 @@ class DataPreProcessor:
 
 			#Write 1 in the FaceGrid for location of face
 			#Subtracting 1 in range because facegrid is 1 indexed
-			for i in range(x-1,x-1+w):
-				for j in range(y-1,y-1+h):
+			xBound = x-1+w
+			yBound = y-1+h
+			if(xBound > 25): #Capping maximum value of x & y to 25
+				xBound = 25
+			if(yBound > 25):
+				yBound = 25
+			for i in range(x-1,xBound):
+				for j in range(y-1,yBound):
 					faceGrid[j][i] = 1
 			#Reshapre facegird from 25x25 to 625x1
 			faceGrid = np.reshape(faceGrid, faceGridSize)
