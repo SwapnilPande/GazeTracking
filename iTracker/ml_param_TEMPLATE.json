@@ -12,6 +12,7 @@
 
 	"pathToData" : "",
 	"pathToTempDir" : "",
+	"pathLogging" : "",
 	
 	"loadPrexistingModel" : false,
 	"prexistingModelPath" : ""

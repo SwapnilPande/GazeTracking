@@ -25,6 +25,7 @@ from keras.callbacks import ModelCheckpoint
 from processData import DataPreProcessor
 
 import math
+import os
 
 import json #used to read config file
 
@@ -96,7 +97,7 @@ with open('ml_param.json') as f:
 		modelPath = paramJSON['prexistingModelPath']
 	pathToData = paramJSON['pathToData']
 	pathTemp = paramJSON['pathToTempDir']
-	# pathLogging = paramJSON['pathLogging']
+	pathLogging = paramJSON['pathLogging']
 
 print()
 #Confirm ML Parameters
@@ -116,6 +117,7 @@ print("Testing Set Proportion: " + str(1 - trainSetProportion - validateSetPropo
 print()
 print('Path to data: ' + pathToData)
 print('Path to create temp directory: ' + pathTemp)
+print('Path to store logs: ' + pathLogging)
 print()
 print('Train with these parameters? (y/n)')
 response = input()
@@ -236,12 +238,13 @@ if(not loadModel):
 
 
 	#Define the callback to checkpoint the model 
-	# checkpointFilepath = 'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5'
-	# checkpointCallback = ModelCheckpoint(
-	# 	checkpointFilepath,
-	# 	monitor='val_loss',
-	# 	period=10
-	# 	)
+	os.mkdir(pathLogging + '/checkpoints')
+	checkpointFilepath = pathLogging + '/checkpoints/' +'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5'
+	checkpointCallback = ModelCheckpoint(
+		checkpointFilepath,
+		monitor='val_loss',
+		period=10
+		)
 else: #Loading model from file
 	iTrackerModel = load_model(modelPath)
 
@@ -250,7 +253,8 @@ iTrackerModel.fit_generator(
 		epochs = numEpochs, 
 		steps_per_epoch = math.ceil(pp.numTrainFrames/trainBatchSize), 
 		validation_data = pp.generateBatch(validateBatchSize, 'validate'), 
-		validation_steps = math.ceil(pp.numValidateFrames/validateBatchSize)
+		validation_steps = math.ceil(pp.numValidateFrames/validateBatchSize),
+		callbacks = [checkpointCallback]
 	)
 
 
@@ -259,8 +263,11 @@ testLoss = iTrackerModel.evaluate_generator(
 	pp.generateBatch(testBatchSize, 'test'),
 	steps = math.ceil(pp.numTestFrames/testBatchSize)
 )
+
+iTrackerModel.save(pathLogging + "/finalModel.h5")
+
 print()
 print("FINISHED MODEL TRAINING AND EVALUATION")
-print("Final test loss: " + int(testLoss))
+print("Final test loss: " + str(testLoss))
 pp.cleanup()
 
