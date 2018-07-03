@@ -11,11 +11,15 @@ from keras.initializers import Zeros, RandomNormal
 
 from keras.optimizers import SGD
 
+#Custom datset processor
+from processData import DataPreProcessor
+
+
 #Defining input here
 leftEyeInput = Input(shape=(224,224,3,))
 rightEyeInput = Input(shape=(224,224,3,))
 faceInput = Input(shape=(224,224,3,))
-faceGridInput = Input(shape=(256,))
+faceGridInput = Input(shape=(625,))
 
 def randNormKernelInitializer():
 	return RandomNormal(stddev= 0.01)
@@ -159,7 +163,10 @@ def getSGDOptimizer():
 
 iTrackerModel.compile(getSGDOptimizer(), loss=['mean_squared_error'], metrics=['accuracy'])
 
+#Initialize Data pre-processor here
+pp = DataPreProcessor('data/zip', 0.8, 0.15)
 
+iTrackerModel.fit_generator(pp.generateBatch(50, 'train'), epochs = 1, steps_per_epoch =int(pp.numTrainFrames/50))
 
 
 

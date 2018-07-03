@@ -346,7 +346,6 @@ class DataPreProcessor:
 			yRight = int(self.metadata[dataset][frame]['rightEye']['Y']) + yFace
 			wRight = int(self.metadata[dataset][frame]['rightEye']['W'])
 			hRight = int(self.metadata[dataset][frame]['rightEye']['H'])
-			print(frame)
 			#Bound checking - ensure x & y are >= 0
 			if(xFace < 0):
 				wFace = wFace + xFace
@@ -455,46 +454,47 @@ class DataPreProcessor:
 	# 	The labels are the x & y location of gaze relative to camera.
 	# Numpy array containing metadata for batch (batchSize, 2)
 	# 	Metadata describes the subject and frame number for each image 
-	def generateBatch(self, batchSize, dataset):		
-		#Determine frames that have been unused in this epoch
-		#by subtracting the sampledTrainFrames from trainFrameIndex  
-		unusedFrames = self.frameIndex[dataset] - self.sampledFrames[dataset]
-		self.frameIndex[dataset]
-		if(len(unusedFrames) > batchSize):  
-			#Collect batchSize number of  random frames
-			framesToRetrieve = set(random.sample(unusedFrames, batchSize)) 
-			#Mark frames in current batch as used
-			self.sampledFrames[dataset] = self.sampledFrames[dataset] | framesToRetrieve
-		elif(len(unusedFrames) == batchSize):
-			framesToRetrieve = unusedFrames
-			#Clear sampled trained frames since all frames have now been sampled in this epoch
-			self.sampledFrames[dataset] = set()
-		else: #Number of reamining frames will not fill batch
-			framesToRetrieve = unusedFrames
-			#Clear sampled trained frames since all frames have now been sampled in this epoch
-			self.sampledFrames[dataset] = set()
-			#Determine frames that have already been included in this batch
-			unusedFrames = self.frameIndex[dataset] - framesToRetrieve
-			#Retrieve enough frames to fill the rest of the batch
-			framesToRetrieve = framesToRetrieve | set(random.sample(unusedFrames, batchSize - len(framesToRetrieve)))
-			#Mark frames in current batch as used
-			self.sampledFrames[dataset] = self.sampledFrames[dataset] | framesToRetrieve
+	def generateBatch(self, batchSize, dataset):
+		while True:		
+			#Determine frames that have been unused in this epoch
+			#by subtracting the sampledTrainFrames from trainFrameIndex  
+			unusedFrames = self.frameIndex[dataset] - self.sampledFrames[dataset]
+			self.frameIndex[dataset]
+			if(len(unusedFrames) > batchSize):  
+				#Collect batchSize number of  random frames
+				framesToRetrieve = set(random.sample(unusedFrames, batchSize)) 
+				#Mark frames in current batch as used
+				self.sampledFrames[dataset] = self.sampledFrames[dataset] | framesToRetrieve
+			elif(len(unusedFrames) == batchSize):
+				framesToRetrieve = unusedFrames
+				#Clear sampled trained frames since all frames have now been sampled in this epoch
+				self.sampledFrames[dataset] = set()
+			else: #Number of reamining frames will not fill batch
+				framesToRetrieve = unusedFrames
+				#Clear sampled trained frames since all frames have now been sampled in this epoch
+				self.sampledFrames[dataset] = set()
+				#Determine frames that have already been included in this batch
+				unusedFrames = self.frameIndex[dataset] - framesToRetrieve
+				#Retrieve enough frames to fill the rest of the batch
+				framesToRetrieve = framesToRetrieve | set(random.sample(unusedFrames, batchSize - len(framesToRetrieve)))
+				#Mark frames in current batch as used
+				self.sampledFrames[dataset] = self.sampledFrames[dataset] | framesToRetrieve
 
-		#Generating batches here
-		#Convert set framesToRetrieve to list so that order is preserved for all data
-		framesToRetrieve = list(framesToRetrieve)
+			#Generating batches here
+			#Convert set framesToRetrieve to list so that order is preserved for all data
+			framesToRetrieve = list(framesToRetrieve)
 
-		metaBatch = np.array(framesToRetrieve)
-		faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve, dataset)
-		faceGridBatch = self.getFaceGrids(framesToRetrieve, dataset)
-		labelsBatch = self.getLabels(framesToRetrieve, dataset)
+			#metaBatch = np.array(framesToRetrieve)
+			faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve, dataset)
+			faceGridBatch = self.getFaceGrids(framesToRetrieve, dataset)
+			labelsBatch = self.getLabels(framesToRetrieve, dataset)
 
-		return {
-					'face' : faceBatch, 
-					'leftEye' : leftEyeBatch, 
-					'rightEye' : rightEyeBatch, 
-					'faceGrid' : faceGridBatch
-				}, labelsBatch, metaBatch
+			yield {
+						'input_3' : faceBatch, 
+						'input_1' : leftEyeBatch, 
+						'input_2' : rightEyeBatch, 
+						'input_4' : faceGridBatch
+					}, labelsBatch#, metaBatch
 
 	# displayBatch
 	# Displays the data for each frame in the batch
