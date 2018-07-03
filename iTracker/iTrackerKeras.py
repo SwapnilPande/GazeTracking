@@ -67,6 +67,8 @@ while(response != 'y' and response != 'n'):
 if(response == 'n'): #Delete directory
 	raise Exception('Incorrect training parameters. Modify ml_param.json')
 
+print("Beginning training...")
+
 
 #Defining input here
 leftEyeInput = Input(shape=(224,224,3,))
