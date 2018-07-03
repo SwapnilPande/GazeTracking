@@ -1,3 +1,10 @@
+try:
+	import config
+	config.run_config()
+except ImportError:
+	print("Unable to load config.py")
+	print("Executing program with no pre-runtime configuration")
+
 #TODO Determine how to use learning rate multipliers
 #TODO Determine how to use grouping in convolutional layer
 #TODO Determine how to create LRN layer

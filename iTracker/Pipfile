@@ -8,6 +8,7 @@ name = "pypi"
 [packages]
 tensorflow-gpu = "*"
 keras = "*"
+opencv-python = "*"
 
 [requires]
 python_version = "3.6"
