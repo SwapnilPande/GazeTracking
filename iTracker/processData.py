@@ -48,7 +48,7 @@ class DataPreProcessor:
 
 		#Store number of subjects in variable
 		self.numSubjects = len(subjectDirs)
-		print('Found ' + str(self.numSubjects) + " subjects")
+		print('Found ' + str(self.numSubjects) + " subjects (zipped)")
 		print()
 
 		#Create data to store unzipped subject data

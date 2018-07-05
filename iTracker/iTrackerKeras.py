@@ -1,3 +1,4 @@
+#Run Config
 try:
 	import config
 	config.run_config()
@@ -8,27 +9,25 @@ except ImportError:
 #TODO Determine how to use grouping in convolutional layer
 #TODO Determine how to create LRN layer
 from keras.models import Model, load_model
-
 #Import necessary layers for model
 from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D
-
 #Import initializers for weights and biases
 from keras.initializers import Zeros, RandomNormal
-
 from keras.optimizers import SGD
-
 #Import callbacks for training
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, TensorBoard
 
-#Custom datset processor
-from processData import DataPreProcessor
 
 import math
 import os
 import shutil
-from uiUtils import yesNoPrompt
-
 import json #used to read config file
+from time import time
+
+from uiUtils import yesNoPrompt
+#Custom datset processor
+from processData import DataPreProcessor
+
 
 #Function definitions for defining model
 def randNormKernelInitializer():
@@ -245,12 +244,17 @@ if(not loadModel):
 		else:
 			raise FileExistsError('Clean logging directory or select a new directory')
 	os.mkdir(pathLogging + '/checkpoints')
+	os.mkdir(pathLogging + '/tensorboard')
+
+	#DEFINING CALLBACKS HERE
 	checkpointFilepath = pathLogging + '/checkpoints/' +'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5'
 	checkpointCallback = ModelCheckpoint(
 		checkpointFilepath,
 		monitor='val_loss',
 		period=10
 		)
+	tensorboardFilepath = pathLogging + '/tensorboard'
+	tensorboard = TensorBoard(log_dir = tensorboardFilepath + '/{}'.format(time()))
 else: #Loading model from file
 	iTrackerModel = load_model(modelPath)
 
@@ -260,7 +264,7 @@ iTrackerModel.fit_generator(
 		steps_per_epoch = math.ceil(pp.numTrainFrames/trainBatchSize), 
 		validation_data = pp.generateBatch(validateBatchSize, 'validate'), 
 		validation_steps = math.ceil(pp.numValidateFrames/validateBatchSize),
-		callbacks = [checkpointCallback]
+		callbacks = [checkpointCallback, tensorboard]
 	)
 
 

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "4ed1a7cf6813e45c7622db9d6ff71fca2ca1d0ad7ef22a0c9e5ebe583203a3f0"
+            "sha256": "63d1ed63c3f2d10bd3d9ca8592091e2f6bb9d0762f8e9b422f99490ade7c228f"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -24,10 +24,10 @@
         },
         "astor": {
             "hashes": [
-                "sha256:64c805f1ad6fbc505633416b6174fc23796eb164f371a7dc1f3951ea30560fb5",
-                "sha256:ff6d2e2962d834acb125cc4dcc80c54a8c17c253f4cc9d9c43b5102a560bb75d"
+                "sha256:8486665ae0be86a31a9e2cb26deb0a71161b116d1d82dec988caf08d543794dd",
+                "sha256:8c26fd9d5f216401d2908ccbf8890200329391af35471dba515fa5eb0af0021d"
             ],
-            "version": "==0.6.2"
+            "version": "==0.7.0"
         },
         "bleach": {
             "hashes": [
@@ -302,6 +302,7 @@
                 "sha256:2651a4d9261a6593cb2c3514576e4bf25e273837c79e98f68a3cf51759f68725",
                 "sha256:7776cc8bcfd0d07cd106e9e86c011ab8eca38c97b57f5433b9f0fd6bbf31a36e"
             ],
+            "index": "pypi",
             "version": "==1.8.0"
         },
         "tensorflow-gpu": {
@@ -335,7 +336,6 @@
                 "sha256:0a2e54558a0628f2145d2fc822137e322412115173e8a2ddbe1c9024338ae83c",
                 "sha256:80044e51ec5bbf6c894ba0bc48d26a8c20a9ba629f4ca19ea26ecfcf87685f5f"
             ],
-            "markers": "python_version >= '3'",
             "version": "==0.31.1"
         }
     },
