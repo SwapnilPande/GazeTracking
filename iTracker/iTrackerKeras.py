@@ -25,6 +25,7 @@ from processData import DataPreProcessor
 
 import math
 import os
+import shutil
 from uiUtils import yesNoPrompt
 
 import json #used to read config file
@@ -120,8 +121,7 @@ print('Path to create temp directory: ' + pathTemp)
 print('Path to store logs: ' + pathLogging)
 print()
 print('Train with these parameters? (y/n)')
-response = yesNoPrompt()
-if(not response): #Delete directory
+if(not yesNoPrompt()): #Delete directory
 	raise Exception('Incorrect training parameters. Modify ml_param.json')
 
 #Initialize Data pre-processor here
@@ -235,6 +235,15 @@ if(not loadModel):
 
 
 	#Define the callback to checkpoint the model 
+	if(os.path.isfile(pathLogging + "/finalModel.h5") or
+		(os.path.isdir(pathLogging + '/checkpoints'))):
+		print("Logging directory is non-empty and contains the final model or checkpoints from a previous execution.")
+		print("Remove data? (y/n)")
+		if(yesNoPrompt()): #Empty logging directory
+			shutil.rmtree(pathLogging)
+			os.mkdir(pathLogging)
+		else:
+			raise FileExistsError('Clean logging directory or select a new directory')
 	os.mkdir(pathLogging + '/checkpoints')
 	checkpointFilepath = pathLogging + '/checkpoints/' +'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5'
 	checkpointCallback = ModelCheckpoint(

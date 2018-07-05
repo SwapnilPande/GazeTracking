@@ -83,8 +83,7 @@ class DataPreProcessor:
 			print('\tNumber of test subjects: ' + str(numExistTest) + " (" + str(numExistTest/totalExist) + ")")			
 			print()
 			print('Remove data and unpack fresh data? (y/n)')
-			response = yesNoPrompt() #Prompt user for input
-			if(response): #Delete directory
+			if(yesNoPrompt()): #Prompt user for input & Delete directory 
 				shutil.rmtree(self.tempDataDir)
 				os.mkdir(self.tempDataDir)
 				os.mkdir(self.trainDir)
@@ -92,8 +91,7 @@ class DataPreProcessor:
 				os.mkdir(self.testDir)
 			else:
 				print('Use Existing data? (y/n)')
-				response = yesNoPrompt()
-				if(response): #Using existing data, no need to unpack new data
+				if(yesNoPrompt()): #Using existing data, no need to unpack new data
 					useExistingData = True
 					print("Using existing data. Ignoring train and validate proportions provided and using existing distribution.")
 					self.numTrainSubjects = numExistTrain
@@ -154,6 +152,8 @@ class DataPreProcessor:
 		print('Number of testing frames: ' + str(self.numTestFrames))
 		print()
 		print('Initialization successful!')
+		print()
+
 
 		#Initializing other variables
 		#Used to store the frames that have already been samples this epoch
@@ -168,8 +168,7 @@ class DataPreProcessor:
 	# Deletes the temporary directory from the filesystem
 	def cleanup(self):
 		print('Cleanup unpacked data? (y/n)')
-		response = yesNoPrompt()
-		if(response):
+		if(yesNoPrompt()):
 			print('Removing temp directory...')
 			shutil.rmtree(self.tempDataDir)
 		print("Exiting program")
