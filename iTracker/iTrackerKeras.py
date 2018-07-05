@@ -2,8 +2,7 @@ try:
 	import config
 	config.run_config()
 except ImportError:
-	print("Unable to load config.py")
-	print("Executing program with no pre-runtime configuration")
+	print("Unable to load config.py - Executing program with no pre-runtime configuration")
 
 #TODO Determine how to use learning rate multipliers
 #TODO Determine how to use grouping in convolutional layer
@@ -26,6 +25,7 @@ from processData import DataPreProcessor
 
 import math
 import os
+from uiUtils import yesNoPrompt
 
 import json #used to read config file
 
@@ -120,11 +120,8 @@ print('Path to create temp directory: ' + pathTemp)
 print('Path to store logs: ' + pathLogging)
 print()
 print('Train with these parameters? (y/n)')
-response = input()
-while(response != 'y' and response != 'n'):
-	print("Enter only y or n:")
-	response = input()
-if(response == 'n'): #Delete directory
+response = yesNoPrompt()
+if(not response): #Delete directory
 	raise Exception('Incorrect training parameters. Modify ml_param.json')
 
 #Initialize Data pre-processor here

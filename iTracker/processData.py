@@ -5,9 +5,9 @@ import random
 import os
 import shutil
 import tarfile
+from uiUtils import yesNoPrompt, createProgressBar
 
 #Used to display progress bars for file init
-from progressbar import ProgressBar 
 
 
 
@@ -83,11 +83,8 @@ class DataPreProcessor:
 			print('\tNumber of test subjects: ' + str(numExistTest) + " (" + str(numExistTest/totalExist) + ")")			
 			print()
 			print('Remove data and unpack fresh data? (y/n)')
-			response = input()
-			while(response != 'y' and response != 'n'):
-				print("Enter only y or n:")
-				response = input()
-			if(response == 'y'): #Delete directory
+			response = yesNoPrompt() #Prompt user for input
+			if(response): #Delete directory
 				shutil.rmtree(self.tempDataDir)
 				os.mkdir(self.tempDataDir)
 				os.mkdir(self.trainDir)
@@ -95,11 +92,8 @@ class DataPreProcessor:
 				os.mkdir(self.testDir)
 			else:
 				print('Use Existing data? (y/n)')
-				response = input()
-				while(response != 'y' and response != 'n'):
-					print("Enter only y or n:")
-					response = input()
-				if(response == 'y'): #Using existing data, no need to unpack new data
+				response = yesNoPrompt()
+				if(response): #Using existing data, no need to unpack new data
 					useExistingData = True
 					print("Using existing data. Ignoring train and validate proportions provided and using existing distribution.")
 					self.numTrainSubjects = numExistTrain
@@ -116,7 +110,7 @@ class DataPreProcessor:
 			#Randomize order of subjects to randomize test, training, and validations ets
 			random.shuffle(subjectDirs)
 			#Init Progress bar
-			pbar = ProgressBar(maxval=len(subjectDirs))
+			pbar = createProgressBar(maxVal=len(subjectDirs))
 			pbar.start()
 			for i, subject in pbar(enumerate(subjectDirs)):
 				if(i < self.numTrainSubjects): #Write to training data folder
@@ -174,11 +168,8 @@ class DataPreProcessor:
 	# Deletes the temporary directory from the filesystem
 	def cleanup(self):
 		print('Cleanup unpacked data? (y/n)')
-		response = input()
-		while(response != 'y' and response != 'n'):
-			print("Enter only y or n: ")
-			response = input()
-		if(response == 'y'):
+		response = yesNoPrompt()
+		if(response):
 			print('Removing temp directory...')
 			shutil.rmtree(self.tempDataDir)
 		print("Exiting program")
@@ -209,7 +200,7 @@ class DataPreProcessor:
 		#Declare index lists and metadata dictionary to return
 		frameIndex = []
 		metadata = {}
-		pbar = ProgressBar()
+		pbar = createProgressBar()
 		for subject in pbar(subjectDirs):
 			subjectPath = path + "/" + subject
 			#Stores the name of the frame files in the frames dir
