@@ -8,7 +8,7 @@ except ImportError:
 #TODO Determine how to use learning rate multipliers
 #TODO Determine how to use grouping in convolutional layer
 #TODO Determine how to create LRN layer
-from keras.models import Model, load_model
+from keras.models import Model, load
 #Import necessary layers for model
 from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D
 #Import initializers for weights and biases
@@ -340,7 +340,7 @@ else: #Loading model from file
 	print("Training Loss:  " + str(previousTrainingState['trainLoss']))
 	print("Validation Accuracy: " + str(previousTrainingState['validateAccuracy']), end= " ")
 	print("Validation Loss:  " + str(previousTrainingState['validateLoss']))
-	iTrackerModel = load_model(modelPath)
+	iTrackerModel = load(modelPath)
 
 
 
