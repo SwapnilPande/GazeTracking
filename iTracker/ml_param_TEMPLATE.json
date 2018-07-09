@@ -1,5 +1,7 @@
 {
-	"learningRate" : ,
+	"learningRate" : {
+		"0" : 
+	},
 	"momentum" :, 
 	"decay" : ,
 	"numEpochs" : ,

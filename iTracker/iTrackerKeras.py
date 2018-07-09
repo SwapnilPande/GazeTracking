@@ -15,7 +15,7 @@ from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshap
 from keras.initializers import Zeros, RandomNormal
 from keras.optimizers import SGD
 #Import callbacks for training
-from keras.callbacks import ModelCheckpoint, TensorBoard
+from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler
 
 
 import math
@@ -73,8 +73,22 @@ def createFullyConnected(units):
 	 	kernel_initializer = randNormKernelInitializer(),
 		bias_initializer = 'zeros'
 	 	)
+# lrScheduler
+# Function for the Learning Rate Scheduler to output the LR based on the provided input
+#  If dictionary contains entry for current epoch, function returns associated learning rate from dict
+# Else, will return current learning rate
+# Arguments:
+# epoch - The current epoch number, 0-indexed
+# learningRate - Current learning Rate
+# Returns learning rate as floating point number
+def lrScheduler(epoch, learningRate):
+	if(str(epoch) in lrSchedule): #Update learning rate
+		print("Setting learning rate: Epoch #" + str(epoch) + ', Learning Rate = ' + str(lrSchedule[str(epoch)]))
+		return lrSchedule[str(epoch)]
+	return learningRate #No need to update learning rate, return current learning rate
 
 ################### Begin Execution ####################
+lrSchedule = {} #Dict containing epoch as key, and learning rate as value
 #Define ML parameters
 with open('ml_param.json') as f:
 	#Boolean to store whether the training should start from scratch
@@ -82,7 +96,16 @@ with open('ml_param.json') as f:
 	paramJSON = json.load(f)
 	loadModel = paramJSON['loadPrexistingModel']
 	if(not loadModel):
+		#Handle constant or scheduled learning rate
 		learningRate = paramJSON['learningRate']
+		try: # Try to treat lr as dict
+			for epoch in learningRate:
+				#Creating lrSchedule dictionary and formatting key strings
+				# Convert to int and back to string to delete extra digits
+				lrSchedule[str(int(epoch))] = learningRate[epoch] 
+		except TypeError: #LearnignRate is single constant value
+			lrSchedule = { '0' : learningRate } #Create dictionary with Learning Rate
+
 		momentum = paramJSON['momentum']
 		decay = paramJSON['decay']
 
@@ -126,6 +149,21 @@ if(not yesNoPrompt()): #Delete directory
 #Initialize Data pre-processor here
 pp = DataPreProcessor(pathToData, pathTemp, trainSetProportion, validateSetProportion)
 
+#Initialize Logging Dir here
+if(os.path.isfile(pathLogging + "/finalModel.h5") or
+	(os.path.isdir(pathLogging + '/checkpoints'))):
+	print("Logging directory is non-empty and contains the final model or checkpoints from a previous execution.")
+	print("Remove data? (y/n)")
+	if(yesNoPrompt()): #Empty logging directory
+		shutil.rmtree(pathLogging)
+		os.mkdir(pathLogging)
+	else:
+		raise FileExistsError('Clean logging directory or select a new directory')
+	os.mkdir(pathLogging + '/checkpoints')
+	os.mkdir(pathLogging + '/tensorboard')
+
+	print("")
+	print("Initalizing Modela and beginning training...")
 
 #Training model from scratch:
 if(not loadModel):
@@ -228,23 +266,9 @@ if(not loadModel):
 	iTrackerModel = Model(inputs = [leftEyeInput, rightEyeInput, faceInput, faceGridInput], outputs = finalOutput)
 	#Define Stochastic Gradient descent optimizer
 	def getSGDOptimizer():
-		return SGD(lr=learningRate, momentum=momentum, decay=decay)
+		return SGD(lr=lrScheduler(0, 0), momentum=momentum, decay=decay)
 	#Compile model
 	iTrackerModel.compile(getSGDOptimizer(), loss=['mean_squared_error'], metrics=['accuracy'])
-
-
-	#Define the callback to checkpoint the model 
-	if(os.path.isfile(pathLogging + "/finalModel.h5") or
-		(os.path.isdir(pathLogging + '/checkpoints'))):
-		print("Logging directory is non-empty and contains the final model or checkpoints from a previous execution.")
-		print("Remove data? (y/n)")
-		if(yesNoPrompt()): #Empty logging directory
-			shutil.rmtree(pathLogging)
-			os.mkdir(pathLogging)
-		else:
-			raise FileExistsError('Clean logging directory or select a new directory')
-	os.mkdir(pathLogging + '/checkpoints')
-	os.mkdir(pathLogging + '/tensorboard')
 
 	#DEFINING CALLBACKS HERE
 	checkpointFilepath = pathLogging + '/checkpoints/' +'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5'
@@ -254,7 +278,12 @@ if(not loadModel):
 		period=10
 		)
 	tensorboardFilepath = pathLogging + '/tensorboard'
-	tensorboard = TensorBoard(log_dir = tensorboardFilepath + '/{}'.format(time()))
+	tensorboard = TensorBoard(
+		log_dir = tensorboardFilepath + '/{}'.format(time()), 
+		histogram_freq = 0, 
+		write_graph = True, 
+		write_images = True)
+	learningRateScheduler = LearningRateScheduler(lrScheduler)
 else: #Loading model from file
 	iTrackerModel = load_model(modelPath)
 
@@ -264,7 +293,7 @@ iTrackerModel.fit_generator(
 		steps_per_epoch = math.ceil(pp.numTrainFrames/trainBatchSize), 
 		validation_data = pp.generateBatch(validateBatchSize, 'validate'), 
 		validation_steps = math.ceil(pp.numValidateFrames/validateBatchSize),
-		callbacks = [checkpointCallback, tensorboard]
+		callbacks = [checkpointCallback, tensorboard, learningRateScheduler]
 	)
 
 
