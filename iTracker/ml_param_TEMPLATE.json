@@ -1,22 +1,31 @@
 {
-	"learningRate" : {
-		"0" : 
-	},
-	"momentum" :, 
-	"decay" : ,
-	"numEpochs" : ,
-	"trainBatchSize" : ,
-	"validateBatchSize" : ,
-	"testBatchSize" : ,
-
-	"trainSetProportion" : ,
-	"validateSetProportion" : ,
-
-	"pathToData" : "",
-	"pathToTempDir" : "",
-	"pathLogging" : "",
-	
 	"loadPrexistingModel" : false,
-	"prexistingModelPath" : ""
+	"existingModelPaths" : 
+	{
+		"prexistingModelPath" : "",
+		"trainLogFile": ""
+	},
+	"trainingHyperparameters:" :
+	{
+		"learningRate" : 
+		{
+			"0" : 
+		},
+		"momentum" :, 
+		"decay" : ,
+		"numEpochs" : ,
+		"trainBatchSize" : ,
+		"validateBatchSize" : ,
+		"testBatchSize" : ,
+
+		"trainSetProportion" : ,
+		"validateSetProportion" : 
+	},
+	"dataPaths" : 
+	{
+		"pathToData" : "",
+		"pathToTempDir" : "",
+		"pathLogging" : ""
+	}
 
 }

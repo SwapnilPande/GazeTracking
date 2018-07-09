@@ -14,14 +14,12 @@ from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshap
 #Import initializers for weights and biases
 from keras.initializers import Zeros, RandomNormal
 from keras.optimizers import SGD
+
 #Import callbacks for training
 from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler
+from customCallbacks import Logger
 
-
-import math
-import os
-import shutil
-import json #used to read config file
+import os, shutil, math, json
 from time import time
 
 from uiUtils import yesNoPrompt
@@ -87,44 +85,70 @@ def lrScheduler(epoch, learningRate):
 		return lrSchedule[str(epoch)]
 	return learningRate #No need to update learning rate, return current learning rate
 
-################### Begin Execution ####################
+######################### Begin Execution ###############################
+
+################### LOAD DATA AND HYPERPARAMETERS #######################
 lrSchedule = {} #Dict containing epoch as key, and learning rate as value
+
 #Define ML parameters
-with open('ml_param.json') as f:
-	#Boolean to store whether the training should start from scratch
-	#Or if prexisting model should be loaded
-	paramJSON = json.load(f)
-	loadModel = paramJSON['loadPrexistingModel']
-	if(not loadModel):
-		#Handle constant or scheduled learning rate
-		learningRate = paramJSON['learningRate']
-		try: # Try to treat lr as dict
-			for epoch in learningRate:
-				#Creating lrSchedule dictionary and formatting key strings
-				# Convert to int and back to string to delete extra digits
-				lrSchedule[str(int(epoch))] = learningRate[epoch] 
-		except TypeError: #LearnignRate is single constant value
-			lrSchedule = { '0' : learningRate } #Create dictionary with Learning Rate
+with open('ml_param.json') as f: #Open paramter file
+	paramJSON = json.load(f) #Load JSON as dict
 
-		momentum = paramJSON['momentum']
-		decay = paramJSON['decay']
+#hyperParamsJSON stores dict containing training hyperparameters
+#Loaded from ml_params.json if training from scratch
+#Loaded from prexisting log file if training from existing model
+dataPathJSON = paramJSON['dataPaths'] # Extract datapath information
+loadModel = paramJSON['loadPrexistingModel'] #Check if we are loading existing model
+if(not loadModel): #Training from scratch, not loading existing model
+	#Load hyperparameters from ml_params.json
+	hyperParamsJSON = paramJSON['trainingHyperparameters']
+	print()
+	print('Loaded following parameters from ml_param.json.')
+else: #Training from existing model
+	existingModelPaths = paramJSON['existingModelPaths'] #Retrieve data about existing mdoel
+	modelPath = existingModelPaths['prexistingModelPath'] #Retrieve path to existing model
+	trainLogFile = existingModelPaths['trainLogFile'] #Retrieve training log file from previous execution
+	#Collect training parameters from log files
+	print()
+	print("Loading training parameters from previous execution log files instead of from ml_params.json")
+	print()
+	with open(trainLogFile) as f:
+		#Boolean to store whether the training should start from scratch
+		#Or if prexisting model should be loaded
+		logFileJSON = json.load(f)
+	#Load hyperparameters from previous execution log file
+	hyperParamsJSON = logFileJSON['trainingHyperparameters']
+	previousTrainingState = logFileJSON['trainState']
+	print("Loaded following parameters from " + trainLogFile)
 
-		numEpochs = paramJSON['numEpochs']
-		trainBatchSize = paramJSON['trainBatchSize']
-		validateBatchSize = paramJSON['validateBatchSize']
-		testBatchSize = paramJSON['testBatchSize']
 
-		trainSetProportion = paramJSON['trainSetProportion']
-		validateSetProportion = paramJSON['validateSetProportion']
-	else:
-		modelPath = paramJSON['prexistingModelPath']
-	pathToData = paramJSON['pathToData']
-	pathTemp = paramJSON['pathToTempDir']
-	pathLogging = paramJSON['pathLogging']
+#Handle constant or scheduled learning rate
+learningRate = hyperParamsJSON['learningRate']
+try: # Try to treat learningRate as dict
+	for epoch in learningRate:
+		#Creating lrSchedule dictionary and formatting key strings
+		# Convert to int and back to string to delete extra digits
+		lrSchedule[str(int(epoch))] = learningRate[epoch] 
+except TypeError: #LearnignRate is single constant value
+	lrSchedule = { '0' : learningRate } #Create dictionary with Learning Rate
 
-print()
+#Loading hyperparameters into individual variables
+momentum = hyperParamsJSON['momentum']
+decay = hyperParamsJSON['decay']
+
+numEpochs = hyperParamsJSON['numEpochs']
+trainBatchSize = hyperParamsJSON['trainBatchSize']
+validateBatchSize = hyperParamsJSON['validateBatchSize']
+testBatchSize = hyperParamsJSON['testBatchSize']
+
+trainSetProportion = hyperParamsJSON['trainSetProportion']
+validateSetProportion = hyperParamsJSON['validateSetProportion']
+
+pathToData = dataPathJSON['pathToData']
+pathTemp = dataPathJSON['pathToTempDir']
+pathLogging = dataPathJSON['pathLogging']
+
 #Confirm ML Parameters
-print('Loaded following parameters from ml_param.json.')
 print('Learning Rate: ' + str(learningRate))
 print('Momentum: ' + str(momentum))
 print('Decay: ' + str(decay))
@@ -161,12 +185,43 @@ if(os.path.isfile(pathLogging + "/finalModel.h5") or
 		raise FileExistsError('Clean logging directory or select a new directory')
 	os.mkdir(pathLogging + '/checkpoints')
 	os.mkdir(pathLogging + '/tensorboard')
+print("")
 
-	print("")
-	print("Initalizing Modela and beginning training...")
+
+#DEFINING CALLBACKS HERE
+logPeriod = 10 #Frequency at which to log data
+#Checkpoints
+checkpointFilepath = pathLogging + '/checkpoints/' +'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5'
+checkpointCallback = ModelCheckpoint(
+	checkpointFilepath,
+	monitor = 'val_loss',
+	period = logPeriod
+	)
+
+#logger
+loggerFilepath = pathLogging + '/checkpoints/' +'iTracker-log-{epoch:02d}-{val_loss:.2f}.json'
+loggerCallback = Logger(
+	loggerFilepath,
+	hyperParamsJSON,
+	period = logPeriod
+	)
+
+#Tensorboard
+tensorboardFilepath = pathLogging + '/tensorboard'
+tensorboard = TensorBoard(
+	log_dir = tensorboardFilepath + '/{}'.format(time()), 
+	histogram_freq = 0, 
+	write_graph = True, 
+	write_images = True)
+
+#Learning Rate Scheduler
+learningRateScheduler = LearningRateScheduler(lrScheduler)
+#Adding all callbacks to list to pass to fit generator
+callbacks = [checkpointCallback, tensorboard, learningRateScheduler, loggerCallback]
 
 #Training model from scratch:
-if(not loadModel):
+if(not loadModel): #Build and compile ML model
+	print("Initializing Model")
 	#Defining input here
 	leftEyeInput = Input(shape=(224,224,3,))
 	rightEyeInput = Input(shape=(224,224,3,))
@@ -262,38 +317,45 @@ if(not loadModel):
 	dataFullyConnected1 = fullyConnected1(finalMerge)
 	finalOutput = fullyConnected2(dataFullyConnected1)
 
+	#Set initial values
+	initialEpoch = 0
+
 	#Initializing the model
 	iTrackerModel = Model(inputs = [leftEyeInput, rightEyeInput, faceInput, faceGridInput], outputs = finalOutput)
 	#Define Stochastic Gradient descent optimizer
 	def getSGDOptimizer():
-		return SGD(lr=lrScheduler(0, 0), momentum=momentum, decay=decay)
+		return SGD(lr=lrSchedule['0'], momentum=momentum, decay=decay)
 	#Compile model
 	iTrackerModel.compile(getSGDOptimizer(), loss=['mean_squared_error'], metrics=['accuracy'])
 
-	#DEFINING CALLBACKS HERE
-	checkpointFilepath = pathLogging + '/checkpoints/' +'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5'
-	checkpointCallback = ModelCheckpoint(
-		checkpointFilepath,
-		monitor='val_loss',
-		period=10
-		)
-	tensorboardFilepath = pathLogging + '/tensorboard'
-	tensorboard = TensorBoard(
-		log_dir = tensorboardFilepath + '/{}'.format(time()), 
-		histogram_freq = 0, 
-		write_graph = True, 
-		write_images = True)
-	learningRateScheduler = LearningRateScheduler(lrScheduler)
+
 else: #Loading model from file
+	#Set initial values
+	initialEpoch = previousTrainingState['epoch']
+	print("Loading model from file")
+	print("Previous training ended at: ")
+	print("Epoch: " + str(previousTrainingState['epoch']))
+	print("Learning Rate: " + str(previousTrainingState['learningRate']))
+	print("Training Accuracy: " + str(previousTrainingState['trainAccuracy']), end= " ")
+	print("Training Loss:  " + str(previousTrainingState['trainLoss']))
+	print("Validation Accuracy: " + str(previousTrainingState['validateAccuracy']), end= " ")
+	print("Validation Loss:  " + str(previousTrainingState['validateLoss']))
 	iTrackerModel = load_model(modelPath)
 
+
+
+
+#Training model
+print("")
+print("Beginning Training...")
 iTrackerModel.fit_generator(
 		pp.generateBatch(trainBatchSize, 'train'), 
 		epochs = numEpochs, 
 		steps_per_epoch = math.ceil(pp.numTrainFrames/trainBatchSize), 
 		validation_data = pp.generateBatch(validateBatchSize, 'validate'), 
 		validation_steps = math.ceil(pp.numValidateFrames/validateBatchSize),
-		callbacks = [checkpointCallback, tensorboard, learningRateScheduler]
+		callbacks = callbacks,
+		initial_epoch = initialEpoch
 	)
 
 

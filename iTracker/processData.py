@@ -151,7 +151,7 @@ class DataPreProcessor:
 		print('Number of validation frames: ' + str(self.numValidateFrames))
 		print('Number of testing frames: ' + str(self.numTestFrames))
 		print()
-		print('Initialization successful!')
+		print('Data initialization successful!')
 		print()
 
 
