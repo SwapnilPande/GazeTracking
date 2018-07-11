@@ -2,3 +2,5 @@ temp
 ml_param.json
 config.py
 *.pyc
+*.hdf5
+iTracker-log*
