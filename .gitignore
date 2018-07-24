@@ -1,5 +1,6 @@
 temp
 ml_param.json
+predict_param.json
 config.py
 *.pyc
 *.hdf5

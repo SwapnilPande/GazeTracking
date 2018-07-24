@@ -1,39 +1,53 @@
-import socketio
-import LoggingNamespace
-import JSON
+from socketIO_client_nexus import SocketIO, LoggingNamespace
+import json
 from keras.models import Model, load_model
-import 1
 
-import logging
-logging.getLogger('socketIO-client').setLevel(logging.DEBUG)
-logging.basicConfig()
+#Importing execution parameters
+with open('predict_param.json') as f: #Open paramter file
+	paramJSON = json.load(f) #Load JSON as dict
 
 #Path to the trained model
-modelPath = ""
+modelPath = paramJSON['prexistingModelPath']
 model = load_model(modelPath) 
 
+def on_connect():
+    print('Connected')
+
+def on_disconnect():
+    print('disconnect')
+
+def on_reconnect():
+    print('reconnect')
+
+def frameReceived(data):
+	print("Received: ")
+	print(data)
+
 #Parameters for connecting to server sending OpenPose data
-ipAddress = 'localhost'
-port = 8000
-dataNamespace = ""
-sio = socketio.ASyncServer() #Initialize SocketIO server
+ipAddress = paramJSON['dataStreamServerAddress']
+port = paramJSON['dataStreamServerPort']
 
-#Callback function definitions for Socket.io connection events
-@sio.on('connect', namespace = dataNamespace)
-def connect(sid, environ):
-	print("Connected to server, connection id" + str(sid))
+#Initialize SocketIO Server
+print("Starting SocketIO Client")
+socketIO = SocketIO(ipAddress, port, LoggingNamespace)
+socketIO.on('connect', on_connect)
+socketIO.on('disconnect', on_disconnect)
+socketIO.on('reconnect', on_reconnect)
+socketIO.on('frame', frameReceived)
+socketIO.wait()
 
-@sio.on('disconnect', namespace = dataNamespace)
-def disconnect():
-	print("Disconnected from server")
+# #Callback function definitions for Socket.io connection events
+# @sio.on('connect', namespace = dataNamespace)
+# def connect(sid, environ):
+# 	print("Connected to server, connection id" + str(sid))
 
-@sio.on('reconnect', namespace = dataNamespace)
-def reconnect():
-	print("Reconnected to server")
+# @sio.on('disconnect', namespace = dataNamespace)
+# def disconnect(sid):
+# 	print("Disconnected from server")
 
-@sio.on('data', namespace = dataNamespace)
-def on_dataReceived(data): #TODO fix datatype
-	data = json.load(data)
+# @sio.on('frameInfo', namespace = dataNamespace)
+# def on_dataReceived(sid, data): #TODO fix datatype
+# 	print(data)
 
 # generateBatch
 # Generates a batch of data to pass to ML model
@@ -163,9 +177,5 @@ def getInputImages(metadata):
 def getFaceGrid(metadata):
 	#TODO implement retrieving facegrid
 	return faceGrids
-
-
-
-
 
 
