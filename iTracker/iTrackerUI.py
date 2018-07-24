@@ -1,6 +1,9 @@
 import sys, pygame
-import ctypes
-ctypes.windll.user32.SetProcessDPIAware()
+import os
+
+if os.name == 'nt':
+	import ctypes
+	ctypes.windll.user32.SetProcessDPIAware()
 
 
 class iTrackerUI:
