@@ -35,6 +35,24 @@ def reconnect():
 def on_dataReceived(data): #TODO fix datatype
 	data = json.load(data)
 
+# generateBatch
+# Generates a batch of data to pass to ML model
+# The batch contains batchSize number of frames
+# Frames are randomly selected from entire dataset
+# Arguments:
+# batchSize - Number of frames to put in the output batch
+# dataset - String describing the dataset that the iamges come from
+# 			3 possible values: 'train', 'validate', 'test' 
+# Returns:
+# Dictionary containing the following keys
+# - face: Numpy array containing batch of data for face (batchSize, 224, 224, 3)
+# - leftEye: Numpy array containing batch of data for left eye (batchSize, 224, 224, 3)
+# - rightEye: Numpy array containing batch of data for right eye (batchSize, 224, 224, 3)
+# - faceGrid: Numpy array containing batch of data for facegrid (batchSize, 625)
+# Numpy array containing label batch (batchSize, 2). 
+# 	The labels are the x & y location of gaze relative to camera.
+# Numpy array containing metadata for batch (batchSize, 2)
+# 	Metadata describes the subject and frame number for each image 
 def preprocessData(metadata):
 	face, leftEye, rightEye = getInputImages(metadata)
 	faceGrid = getFaceGrid(metadata)
@@ -146,26 +164,6 @@ def getFaceGrid(metadata):
 	#TODO implement retrieving facegrid
 	return faceGrids
 
-# generateBatch
-# Generates a batch of data to pass to ML model
-# The batch contains batchSize number of frames
-# Frames are randomly selected from entire dataset
-# Arguments:
-# batchSize - Number of frames to put in the output batch
-# dataset - String describing the dataset that the iamges come from
-# 			3 possible values: 'train', 'validate', 'test' 
-# Returns:
-# Dictionary containing the following keys
-# - face: Numpy array containing batch of data for face (batchSize, 224, 224, 3)
-# - leftEye: Numpy array containing batch of data for left eye (batchSize, 224, 224, 3)
-# - rightEye: Numpy array containing batch of data for right eye (batchSize, 224, 224, 3)
-# - faceGrid: Numpy array containing batch of data for facegrid (batchSize, 625)
-# Numpy array containing label batch (batchSize, 2). 
-# 	The labels are the x & y location of gaze relative to camera.
-# Numpy array containing metadata for batch (batchSize, 2)
-# 	Metadata describes the subject and frame number for each image 
-def generateInput(metadata):
-	
 
 
 
