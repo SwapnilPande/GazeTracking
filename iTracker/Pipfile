@@ -11,6 +11,8 @@ keras = "*"
 opencv-python = "*"
 "progressbar2" = "*"
 tensorboard = "*"
+python-socketio = "*"
+pygame = "*"
 
 [requires]
 python_version = "3.6"

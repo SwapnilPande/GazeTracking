@@ -6,6 +6,7 @@ import os
 import shutil
 import tarfile
 from uiUtils import yesNoPrompt, createProgressBar
+import imageUtils
 
 #Used to display progress bars for file init
 
@@ -304,38 +305,6 @@ class DataPreProcessor:
 	def getImage(self, imagePath):
 		return 	cv2.imread(imagePath)
 
-
-
-	# crop
-	# Crops based on the provided parameters
-	# Not destructive, does not modify original file
-	# Arguments:
-	# image - NumPy array containing the image
-	# x - Horizontal position to start crop from top left corner
-	# y - Vertical position to start crop from top left corner
-	# w - width of the crop (horizontal)
-	# h - height of the crop (vertical)# Returns numpy array describing the cropped image
-	def crop(self, image, x, y, w, h):
-		return image[y:y+h, x:x+w]
-
-	# resize
-	# Resizes an image based on the provided parameters
-	# Not destructive, does not modify original file
-	# Arguments:
-	# image - NumPy array containing the image
-	# imageSizePx - Final size of image in pixels. This is both height and weidth
-	# Returns numpy array containing the resized image
-	def resize(self, image, imageSizePx):
-		return cv2.resize(image, (imageSizePx, imageSizePx))
-	# normalize
-	# Rescales all of the data to a scale of 0-1
-	# Arguments:
-	# scale - current max value of data
-	# returns NumPy array scaled from 0-1
-	def normalize(self, image, maxVal):
-		return np.divide(image, maxVal)
-
-
 	# getInputImages
 	# Creates the properly formatted (cropped and scaled) images of the
 	# face, left eye, and right eye
@@ -401,14 +370,14 @@ class DataPreProcessor:
 
 
 			#Retrieve cropped images
-			faceImage = self.crop(image, xFace, yFace, wFace, hFace)
-			leftEyeImage = self.crop(image, xLeft, yLeft, wLeft, hLeft)
-			rightEyeImage = self.crop(image, xRight, yRight, wRight, hRight)
+			faceImage = imageUtils.crop(image, xFace, yFace, wFace, hFace)
+			leftEyeImage = imageUtils.crop(image, xLeft, yLeft, wLeft, hLeft)
+			rightEyeImage = imageUtils.crop(image, xRight, yRight, wRight, hRight)
 
 			#Resize images to 224x224 to pass to neural network
-			faceImage = self.resize(faceImage, desiredImageSize)
-			leftEyeImage = self.resize(leftEyeImage, desiredImageSize)
-			rightEyeImage = self.resize(rightEyeImage, desiredImageSize)
+			faceImage = imageUtils.resize(faceImage, desiredImageSize)
+			leftEyeImage = imageUtils.resize(leftEyeImage, desiredImageSize)
+			rightEyeImage = imageUtils.resize(rightEyeImage, desiredImageSize)
 
 			#Writing process images to np array
 			faceImages[i] = faceImage
@@ -416,9 +385,9 @@ class DataPreProcessor:
 			rightEyeImages[i] = rightEyeImage
 
 		#Noramlize all data to scale 0-1
-		faceImages = self.normalize(faceImages, 255)
-		leftEyeImages = self.normalize(leftEyeImages, 255)
-		rightEyeImages = self.normalize(rightEyeImages, 255)
+		faceImages = imageUtils.normalize(faceImages, 255)
+		leftEyeImages = imageUtils.normalize(leftEyeImages, 255)
+		rightEyeImages = imageUtils.normalize(rightEyeImages, 255)
 
 		return faceImages, leftEyeImages, rightEyeImages
 
