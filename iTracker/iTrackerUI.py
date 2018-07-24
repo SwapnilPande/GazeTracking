@@ -60,7 +60,8 @@ class iTrackerUI:
 	# updateCursor
 	# Redraws the UI with the updated cursor location
 	# updatedCursorCoords - tuple containing x and y coordinates of the cursor
-	def updateCursor(self, updatedCustorCoords):
+	# If no coordinates are passed, display is updated with previous cursor coordinates
+	def updateCursor(self, updatedCustorCoords = None):
 		#Looks for exit event to close application
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT: sys.exit()
@@ -71,9 +72,10 @@ class iTrackerUI:
 		#Draw dots on screen
 		for dotCoord in self.dotCoords:
 			self.screen.blit(self.dot, dotCoord)
-
+			
 		#Store updated cursor coordinates
-		self.cursorCoords = self.cm2Px(updatedCustorCoords)
+		if(updatedCursorCoords):
+			self.cursorCoords = self.cm2Px(updatedCustorCoords)
 
 		#Draw cursor to screen
 		self.screen.blit(self.cursor, self.cursorCoords)

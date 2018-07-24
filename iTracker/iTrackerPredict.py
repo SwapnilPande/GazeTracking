@@ -73,30 +73,33 @@ def getFaceGrid(fgMetadata):
 
 def predictGaze(data):
 	frameData = json.load(data)
+	prediction = None # Initializing prediction object
+	#Checking if incoming data is valid
+	if(frameData['frameInfo']['faceGrid']['isValid']):
+		#Extracting numpy arrays from string
+		#They are 1D at first and need to be reshaped
+		face = np.fromstring(frameData['image']['face'])
+		face = face.reshape(face, (224, 224))
 
-	#Extracting numpy arrays from string
-	#They are 1D at first and need to be reshaped
-	face = np.fromstring(frameData['image']['face'])
-	face = face.reshape(face, (224, 224))
+		leftEye = np.fromstring(frameData['image']['leftEye'])
+		leftEye = leftEye.reshape(leftEye, (224,224))
 
-	leftEye = np.fromstring(frameData['image']['leftEye'])
-	leftEye = leftEye.reshape(leftEye, (224,224))
+		rightEye = np.fromstring(frameData['image']['rightEye'])
+		rightEye = rightEye.reshape(rightEye, (224,224))
 
-	rightEye = np.fromstring(frameData['image']['rightEye'])
-	rightEye = rightEye.reshape(rightEye, (224,224))
+		#Generate facegrid from metadata
+		faceGrid = getFaceGrid(frameData['frameInfo']['faceGrid'])
 
-	#Generate facegrid from metadata
-	faceGrid = getFaceGrid(frameData['frameInfo']['faceGrid'])
-
-	predictionInput = {
-				'input_3' : face, 
-				'input_1' : leftEye, 
-				'input_2' : rightEye, 
-				'input_4' : faceGrid
-				}
-
-	prediction = model.predict(predictionInput)
-	print(prediction)
+		predictionInput = {
+					'input_3' : face, 
+					'input_1' : leftEye, 
+					'input_2' : rightEye, 
+					'input_4' : faceGrid
+					}
+		prediction = model.predict(predictionInput)
+		print(prediction)
+	else:
+		print("Invalid data")
 	updateUI(prediction)
 
 
