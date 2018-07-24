@@ -78,10 +78,10 @@ class iTrackerUI:
 		#Update screen
 		pygame.display.flip()
 
-ui = iTrackerUI();
-while 1:
-	for x,y in zip(range(1000, 3000), range(1000, 3000)):
-		ui.updateCursor((14.25, -20))
+# ui = iTrackerUI();
+# while 1:
+# 	for x,y in zip(range(1000, 3000), range(1000, 3000)):
+# 		ui.updateCursor((14.25, -20))
 
 
 
