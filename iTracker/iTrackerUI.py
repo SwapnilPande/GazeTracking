@@ -12,7 +12,7 @@ class iTrackerUI:
 	def __init__(self):
 		#Initializing pygame UI
 		pygame.init()
-
+		
 		self.dispInfo = pygame.display.Info() #Collecting info about the display application is running on
 		self.screenSize = self.wScreenPx, self.hScreenPx = (self.dispInfo.current_w, self.dispInfo.current_h) #Storing screen size from info object
 		self.black = 0,0,0 #Black tuple for writing background color
@@ -48,6 +48,10 @@ class iTrackerUI:
 		self.xCm2Px = self.wScreenPx/self.wScreenCm
 		self.yCm2Px = self.hScreenPx/self.hScreenCm
 
+		self.clock = pygame.time.Clock() #Initialize clock for calculating fps
+		self.font = pygame.font.Font(None, 60) #Create font for writing fps on screen
+
+
 	# cm2Px
 	# Transforms x and y coordinates in centimeters (relative to camera) to pixels (relative to origin pixel)
 	# Arugments:
@@ -61,7 +65,7 @@ class iTrackerUI:
 	# Redraws the UI with the updated cursor location
 	# updatedCursorCoords - tuple containing x and y coordinates of the cursor
 	# If no coordinates are passed, display is updated with previous cursor coordinates
-	def updateCursor(self, updatedCustorCoords = None):
+	def updateCursor(self, updatedCursorCoords = None):
 		#Looks for exit event to close application
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT: sys.exit()
@@ -75,18 +79,24 @@ class iTrackerUI:
 			
 		#Store updated cursor coordinates
 		if(updatedCursorCoords):
-			self.cursorCoords = self.cm2Px(updatedCustorCoords)
-
+			self.cursorCoords = self.cm2Px(updatedCursorCoords)
+		
 		#Draw cursor to screen
 		self.screen.blit(self.cursor, self.cursorCoords)
+
+		#Measuring FPS
+		self.clock.tick(60) #Tick clock timer
+		fps = self.font.render(str(int(self.clock.get_fps())), True, pygame.Color('white')) #Get fps
+		self.screen.blit(fps, (0, 0)) #Draw FPS on screen
 
 		#Update screen
 		pygame.display.flip()
 
-# ui = iTrackerUI();
-# while 1:
-# 	for x,y in zip(range(1000, 3000), range(1000, 3000)):
-# 		ui.updateCursor((14.25, -20))
+
+ui = iTrackerUI();
+while 1:
+	for x,y in zip(range(1000, 3000), range(1000, 3000)):
+		ui.updateCursor((14.25, -20))
 
 
 
