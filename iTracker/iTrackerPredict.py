@@ -4,7 +4,7 @@ from keras.models import Model, load_model
 from iTrackerUI import iTrackerUI #Importing UI object
 import numpy as np
 import cv2
-
+import time
 #Importing execution parameters
 with open('predict_param.json') as f: #Open paramter file
 	paramJSON = json.load(f) #Load JSON as dict
@@ -73,18 +73,25 @@ def getFaceGrid(fgMetadata):
 	return faceGrid
 
 def predictGaze(data):
+	frameData = json.loads(data)
 	prediction = None # Initializing prediction object
 	#Checking if incoming data is valid
-	if(frameData['frameInfo']['faceGrid']['isValid']):
+	if(frameData['frameInfo']['faceGrid']['IsValid']*
+		frameData['frameInfo']['face']['IsValid']*
+		frameData['frameInfo']['leftEye']['IsValid']*
+		frameData['frameInfo']['rightEye']['IsValid'] == 1):
+
 		#Extracting numpy arrays from string
 		#They are 1D at first and need to be reshaped
-		face = cv2.imdecode(np.fromstring(frameData['image']['face'], dtype=np.uint8), -1)
-		#leftEye = cv2.imdecode(np.fromstring(frameData['image']['leftEye'], dtype=np.uint8), -1)
-		#rightEye = cv2.imdecode(np.fromstring(frameData['image']['rightEye'], dtype=np.uint8), -1)
-		cv2.imshow(face)
+		face = cv2.imdecode(np.asarray(frameData['Image']['face']['data'], dtype = np.int8), -1)
+		leftEye = cv2.imdecode(np.fromstring(frameData['image']['leftEye'], dtype=np.uint8), -1)
+		rightEye = cv2.imdecode(np.fromstring(frameData['image']['rightEye'], dtype=np.uint8), -1)
+		###TEST CODE
+		cv2.destroyAllWindows()
+		cv2.imshow("Face",face)
 		#cv2.imshow(leftEye)
 		#cv2.imshow(rightEye)
-		cv2.waitKey(-1)
+
 		#Generate facegrid from metadata
 	# 	faceGrid = getFaceGrid(frameData['frameInfo']['faceGrid'])
 	# 	#Creaing input dictionary to pass to model
