@@ -4,17 +4,113 @@ import cv2
 import random
 import os
 import shutil
+import math
 import tarfile
+from keras.utils import Sequence
 from uiUtils import yesNoPrompt, createProgressBar
 import imageUtils
 
 #Used to display progress bars for file init
 
 
+def initializeData(pathToData, pathTemp, trainProportion, validateProportion):
+	#Calculating test data prooportion based on size of data
+	testProportion = 1 - trainProportion - validateProportion
+
+	#Getting all of the subject directories in the data directories
+	dataDirs = os.listdir(path=pathToData)
+
+	subjectDirs = []
+	#Create list containing all of the items ending with .zip
+	#This represents the zip files containing data for each subject
+	print('Locating data')
+	for item in dataDirs:
+		if item.endswith('.tar.gz'):
+			subjectDirs.append(pathToData + '/' + item)
+
+	#Store number of subjects in variable
+	numSubjects = len(subjectDirs) ##TODO Decide if needded
+	print('Found ' + str(numSubjects) + " subjects (zipped)")
+	print()
+
+	#Create data to store unzipped subject data
+	#Create three subdirectories to split train, validate, and test data
+	print('Creating temporary directory to store unzipped data')
+	tempDataDir = pathTemp + '/temp'
+	trainDir = tempDataDir + '/train'
+	validateDir = tempDataDir + '/validate'
+	testDir = tempDataDir + '/test'
+
+	#Number of training, validation, and test subjects
+	numTrainSubjects = round(trainProportion*numSubjects)
+	numValidateSubjects = round(validateProportion*numSubjects)
+	numTestSubjects = numSubjects - numTrainSubjects - numValidateSubjects
+	
+	#Flag to store whether or not to use existing data in temp dir
+	useExistingData = False
+	try:
+		os.mkdir(tempDataDir)
+		os.mkdir(trainDir)
+		os.mkdir(validateDir)
+		os.mkdir(testDir)
+	except FileExistsError: #Temp directory already exists
+		#First determine how many subjects exist to give data to user
+		numExistTrain = len(os.listdir(trainDir))
+		numExistValidate = len(os.listdir(validateDir))
+		numExistTest = len(os.listdir(testDir))
+		totalExist = numExistTest + numExistTrain + numExistValidate
+
+		print('Temporary directory already exists with following data')
+		print("\tTotal number of subjects: " + str(totalExist))
+		print('\tNumber of training subjects: ' + str(numExistTrain) + " (" + str(numExistTrain/totalExist) + ")")
+		print('\tNumber of validation subjects: ' + str(numExistValidate) + "( " + str(numExistValidate/totalExist) + ")")
+		print('\tNumber of test subjects: ' + str(numExistTest) + " (" + str(numExistTest/totalExist) + ")")			
+		print()
+		print('Remove data and unpack fresh data? (y/n)')
+		if(yesNoPrompt()): #Prompt user for input & Delete directory 
+			shutil.rmtree(tempDataDir)
+			os.mkdir(tempDataDir)
+			os.mkdir(trainDir)
+			os.mkdir(validateDir)
+			os.mkdir(testDir)
+		else:
+			print('Use Existing data? (y/n)')
+			if(yesNoPrompt()): #Using existing data, no need to unpack new data
+				useExistingData = True
+				print("Using existing data. Ignoring train and validate proportions provided and using existing distribution.")
+			else: #Cannot unpack or use existing, exit program
+				raise FileExistsError('Cannot operate on non-empty temp directory. Clean directory or select a new directory.')
+		print()
+		if(not useExistingData): #Need to unpack new data
+			#Unzip data for all subjects, write to temp directory
+			print('Unpacking subject data into temporary directory: ' + tempDataDir)
+			print('Splitting data into training, validation, and test sets')
+			#Randomize order of subjects to randomize test, training, and validations ets
+			random.shuffle(subjectDirs)
+			#Init Progress bar
+			pbar = createProgressBar(maxVal=len(subjectDirs))
+			pbar.start()
+			for i, subject in pbar(enumerate(subjectDirs)):
+				if(i < numTrainSubjects): #Write to training data folder
+					with tarfile.open(subject, 'r:*') as f:
+						f.extractall(trainDir)
+				elif(i < numTrainSubjects + numValidateSubjects): #Validation folder
+					with tarfile.open(subject, 'r:*') as f:
+						f.extractall(validateDir)
+				else: #Test folder
+					with tarfile.open(subject, 'r:*') as f:
+						f.extractall(testDir)
+				pbar.update(i)
+			pbar.finish()
+			print("Number of training subjects: " + str(numTrainSubjects))
+			print('Number of validation subjects: ' + str(numValidateSubjects))
+			print('Number of test subjects: ' + str(numTestSubjects))
+			print()	
+		print('Data initialization successful!')
 
 
 
-class DataPreProcessor:
+class DataPreProcessor(Sequence):
 	#Class attributes
 	
 	# Constructor
@@ -22,6 +118,7 @@ class DataPreProcessor:
 	# and building an index of valid frames and the respective metadata
 	# pathToData - Path to the dir containing the zipped subject data
 	# pathTemp, - Path to directory in which to create temp dir
+	# batchSize - 
 	# trainProportion - Proportion of data to make training data
 	# validationProportion - Proportion of data to make validation data
 	# Note: trainProportion + validateProportion must be <= 1. Remaining percentage
@@ -32,137 +129,36 @@ class DataPreProcessor:
 	# 			each dictionary contains 5 keys: face, leftEye, rightEye, faceGrid, and label
 	#			each of these keys refers to a dictionary containing the necessary metadata to describe feature
 	# sampledFrames - stores sets that described the data that has already been sampled in the current epoch
-	def __init__(self, pathToData, pathTemp, trainProportion, validateProportion):
-		self.trainProportion = trainProportion
-		self.validateProportion = validateProportion
-		self.testProportion = 1 - trainProportion - validateProportion
-		#Getting all of the subject directories in the data directories
-		dataDirs = os.listdir(path=pathToData)
+	def __init__(self, pathToData, pathTemp, batchSize, dataset, debug = False):
+		self.debug = debug
+		if(not(dataset in ['test', 'validate', 'train'])):
+			raise ValueError("Invalid dataset. Dataset can only be test, train, or validate.")
+		#Creating variables containing paths to data dirs
+		self.tempDataDir = pathTemp + '/temp/' + dataset
 
-		subjectDirs = []
-		#Create list containing all of the items ending with .zip
-		#This represents the zip files containing data for each subject
-		print('Locating data')
-		for item in dataDirs:
-			if item.endswith('.tar.gz'):
-				subjectDirs.append(pathToData + '/' + item)
+		#Stores the number of subjects
+		self.numSubjects =  len(os.listdir(self.tempDataDir))
 
-		#Store number of subjects in variable
-		self.numSubjects = len(subjectDirs)
-		print('Found ' + str(self.numSubjects) + " subjects (zipped)")
-		print()
-
-		#Create data to store unzipped subject data
-		#Create three subdirectories to split train, validate, and test data
-		print('Creating temporary directory to store unzipped data')
-		self.tempDataDir = pathTemp + '/temp'
-		self.trainDir = self.tempDataDir + '/train'
-		self.validateDir = self.tempDataDir + '/validate'
-		self.testDir = self.tempDataDir + '/test'
-
-		#Number of training, validation, and test subjects
-		self.numTrainSubjects = round(trainProportion*self.numSubjects)
-		self.numValidateSubjects = round(validateProportion*self.numSubjects)
-		self.numTestSubjects = self.numSubjects - self.numTrainSubjects - self.numValidateSubjects
-		#Flag to store whether or not to use existing data in temp dir
-		useExistingData = False
-		try:
-			os.mkdir(self.tempDataDir)
-			os.mkdir(self.trainDir)
-			os.mkdir(self.validateDir)
-			os.mkdir(self.testDir)
-		except FileExistsError: #Temp directory already exists
-			#First determine how many subjects exist to give data to user
-			numExistTrain = len(os.listdir(self.trainDir))
-			numExistValidate = len(os.listdir(self.validateDir))
-			numExistTest = len(os.listdir(self.testDir))
-			totalExist = numExistTest + numExistTrain + numExistValidate
-			print('Temporary directory already exists with following data')
-			print("\tTotal number of subjects: " + str(totalExist))
-			print('\tNumber of training subjects: ' + str(numExistTrain) + " (" + str(numExistTrain/totalExist) + ")")
-			print('\tNumber of validation subjects: ' + str(numExistValidate) + "( " + str(numExistValidate/totalExist) + ")")
-			print('\tNumber of test subjects: ' + str(numExistTest) + " (" + str(numExistTest/totalExist) + ")")			
-			print()
-			print('Remove data and unpack fresh data? (y/n)')
-			if(yesNoPrompt()): #Prompt user for input & Delete directory 
-				shutil.rmtree(self.tempDataDir)
-				os.mkdir(self.tempDataDir)
-				os.mkdir(self.trainDir)
-				os.mkdir(self.validateDir)
-				os.mkdir(self.testDir)
-			else:
-				print('Use Existing data? (y/n)')
-				if(yesNoPrompt()): #Using existing data, no need to unpack new data
-					useExistingData = True
-					print("Using existing data. Ignoring train and validate proportions provided and using existing distribution.")
-					self.numTrainSubjects = numExistTrain
-					self.numValidateSubjects = numExistValidate
-					self.numTestSubjects = numExistTest
-					self.numSubjects = totalExist
-				else: #Cannot unpack or use existing, exit program
-					raise FileExistsError('Cannot operate on non-empty temp directory. Clean directory or select a new directory.')
-		print()
-		if(not useExistingData): #Need to unpack new data
-			#Unzip data for all subjects, write to temp directory
-			print('Unpacking subject data into temporary directory: ' + self.tempDataDir)
-			print('Splitting data into training, validation, and test sets')
-			#Randomize order of subjects to randomize test, training, and validations ets
-			random.shuffle(subjectDirs)
-			#Init Progress bar
-			pbar = createProgressBar(maxVal=len(subjectDirs))
-			pbar.start()
-			for i, subject in pbar(enumerate(subjectDirs)):
-				if(i < self.numTrainSubjects): #Write to training data folder
-					with tarfile.open(subject, 'r:*') as f:
-						f.extractall(self.trainDir)
-				elif(i < self.numTrainSubjects + self.numValidateSubjects): #Validation folder
-					with tarfile.open(subject, 'r:*') as f:
-						f.extractall(self.validateDir)
-				else: #Test folder
-					with tarfile.open(subject, 'r:*') as f:
-						f.extractall(self.testDir)
-				pbar.update(i)
-			pbar.finish()
-			print("Number of training subjects: " + str(self.numTrainSubjects))
-			print('Number of validation subjects: ' + str(self.numValidateSubjects))
-			print('Number of test subjects: ' + str(self.numTestSubjects))
-			print()
-
-		#Build index of metadata for each frame of training, validation, and testing data
-		#Stores the paths to all valid frames (training)
+		#Build index of metadata for each frame of dataset
+		#Stores the paths to all valid frames
 		#Note: path is relative to working dir, not training data dir
-		self.frameIndex = {} #Declaring dictionary of indexes for training, validation, and testing datasets
-		self.metadata = {} #Deeclaring dictionary of metadata dictionaries
-		print('Building index and collecting metadata for training data')
-		self.frameIndex['train'], self.metadata['train'] = self.indexData(self.trainDir)
-		
-		print('Building index and collecting metadata for validation data')
-		self.frameIndex['validate'], self.metadata['validate'] = self.indexData(self.validateDir)
-		
-		print('Building index and collecting metadata for testing data')
-		self.frameIndex['test'], self.metadata['test'] = self.indexData(self.testDir) 
+		print('Building index and collecting metadata for ' + dataset + ' dataset')
+		self.frameIndex, self.metadata = self.indexData(self.tempDataDir)
 
 		#Get Number of frames
-		self.numTrainFrames = len(self.frameIndex['train'])
-		self.numValidateFrames = len(self.frameIndex['validate'])
-		self.numTestFrames = len(self.frameIndex['test'])
+		self.numFrames = len(self.frameIndex)
 
 		print()
-		print("Number of training frames: " + str(self.numTrainFrames))
-		print('Number of validation frames: ' + str(self.numValidateFrames))
-		print('Number of testing frames: ' + str(self.numTestFrames))
+		print("Number of " + dataset + " frames: " + str(self.numFrames))
 		print()
-		print('Data initialization successful!')
+		print('Data Pre-processor initialization successful for ' + dataset + ' dataset!')
 		print()
 
+		#Shuffle order of frame index to randomize batches
+		random.shuffle(self.frameIndex)
 
 		#Initializing other variables
-		#Used to store the frames that have already been samples this epoch
-		self.sampledFrames = {
-			'train' : set(),
-			'validate' : set(),
-			'test' : set()
- 		}
+		self.batchSize = batchSize
 
 	# cleanup
 	# Should be called at the time of destroying the Preprocessor object
@@ -231,7 +227,7 @@ class DataPreProcessor:
 						'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
 						'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
 					}
-		return set(frameIndex), metadata
+		return frameIndex, metadata
 
 	# getFramesJSON
 	# Loads frames.json to a dictionary
@@ -310,10 +306,8 @@ class DataPreProcessor:
 	# face, left eye, and right eye
 	# Arguments:
 	# imagePath - List of the paths of the images to retrieve
-	# dataset - String describing the dataset that the iamges come from
-	# 			3 possible values: 'train', 'validate', 'test' 
 	# Returns 4D 3 NumPy arrays containing the images (image, x, y, channel)
-	def getInputImages(self, imagePaths, dataset):
+	def getInputImages(self, imagePaths):
 		#Desired size of images after processing
 		desiredImageSize = 224
 
@@ -328,26 +322,26 @@ class DataPreProcessor:
 			image = self.getImage(frame)
 
 			#Crop image of face from original frame
-			xFace = int(self.metadata[dataset][frame]['face']['X'])
-			yFace = int(self.metadata[dataset][frame]['face']['Y'])
-			wFace = int(self.metadata[dataset][frame]['face']['W'])
-			hFace = int(self.metadata[dataset][frame]['face']['H'])
+			xFace = int(self.metadata[frame]['face']['X'])
+			yFace = int(self.metadata[frame]['face']['Y'])
+			wFace = int(self.metadata[frame]['face']['W'])
+			hFace = int(self.metadata[frame]['face']['H'])
 
 
 			#Crop image of left eye
 			#JSON file specifies position eye relative to face
 			#Therefore, we must transform to make coordinates
 			#Relative to picture by adding coordinates of face
-			xLeft = int(self.metadata[dataset][frame]['leftEye']['X']) + xFace
-			yLeft = int(self.metadata[dataset][frame]['leftEye']['Y']) + yFace
-			wLeft = int(self.metadata[dataset][frame]['leftEye']['W'])
-			hLeft = int(self.metadata[dataset][frame]['leftEye']['H'])
+			xLeft = int(self.metadata[frame]['leftEye']['X']) + xFace
+			yLeft = int(self.metadata[frame]['leftEye']['Y']) + yFace
+			wLeft = int(self.metadata[frame]['leftEye']['W'])
+			hLeft = int(self.metadata[frame]['leftEye']['H'])
 
 			#Right Eye
-			xRight = int(self.metadata[dataset][frame]['rightEye']['X']) + xFace
-			yRight = int(self.metadata[dataset][frame]['rightEye']['Y']) + yFace
-			wRight = int(self.metadata[dataset][frame]['rightEye']['W'])
-			hRight = int(self.metadata[dataset][frame]['rightEye']['H'])
+			xRight = int(self.metadata[frame]['rightEye']['X']) + xFace
+			yRight = int(self.metadata[frame]['rightEye']['Y']) + yFace
+			wRight = int(self.metadata[frame]['rightEye']['W'])
+			hRight = int(self.metadata[frame]['rightEye']['H'])
 			#Bound checking - ensure x & y are >= 0
 			if(xFace < 0):
 				wFace = wFace + xFace
@@ -395,20 +389,18 @@ class DataPreProcessor:
 	# Extract the faceGrid information from JSON to numpy array
 	# Arguments:
 	# imagePath - List of the paths of the images to retrieve
-	# dataset - String describing the dataset that the iamges come from
-	# 			3 possible values: 'train', 'validate', 'test' 	
 	# Returns a 2D NumPy array containing the faceGrid (framesx625)
-	def getFaceGrids(self, imagePaths,dataset):
+	def getFaceGrids(self, imagePaths):
 		#Size of the facegrid output
 		faceGridSize = 625
 
 		faceGrids = np.zeros((len(imagePaths), faceGridSize))
 		for frameNum, frame in enumerate(imagePaths):
 			#Retrieve necessary values
-			x =  self.metadata[dataset][frame]['faceGrid']['X']
-			y =  self.metadata[dataset][frame]['faceGrid']['Y']
-			w =  self.metadata[dataset][frame]['faceGrid']['W']
-			h =  self.metadata[dataset][frame]['faceGrid']['H']
+			x =  self.metadata[frame]['faceGrid']['X']
+			y =  self.metadata[frame]['faceGrid']['Y']
+			w =  self.metadata[frame]['faceGrid']['W']
+			h =  self.metadata[frame]['faceGrid']['H']
 
 			#Create 5x5 array of zeros
 			faceGrid = np.zeros((25, 25))
@@ -440,14 +432,12 @@ class DataPreProcessor:
 	# Extract the x and y location of the gaze relative to the camera Frame of Reference
 	# Arguments:
 	# imagePaths - List of the paths of the images to retrieve
-	# dataset - String describing the dataset that the iamges come from
-	# 			3 possible values: 'train', 'validate', 'test' 
 	# Returns a (framesx2) numpy array containing the x and y location of the targets relative to camera
-	def getLabels(self, imagePaths, dataset):
+	def getLabels(self, imagePaths):
 		labels = np.zeros((len(imagePaths), 2))
 		for i, frame in enumerate(imagePaths):
-			labels[i] = np.array([self.metadata[dataset][frame]['label']['XCam'],
-									self.metadata[dataset][frame]['label']['YCam']])
+			labels[i] = np.array([self.metadata[frame]['label']['XCam'],
+									self.metadata[frame]['label']['YCam']])
 		return labels
 
 	# generateBatch
@@ -456,8 +446,6 @@ class DataPreProcessor:
 	# Frames are randomly selected from entire dataset
 	# Arguments:
 	# batchSize - Number of frames to put in the output batch
-	# dataset - String describing the dataset that the iamges come from
-	# 			3 possible values: 'train', 'validate', 'test' 
 	# Returns:
 	# Dictionary containing the following keys
 	# - face: Numpy array containing batch of data for face (batchSize, 224, 224, 3)
@@ -468,37 +456,41 @@ class DataPreProcessor:
 	# 	The labels are the x & y location of gaze relative to camera.
 	# Numpy array containing metadata for batch (batchSize, 2)
 	# 	Metadata describes the subject and frame number for each image 
-	def generateBatch(self, batchSize, dataset):
-		while True:		
-			#Determine frames that have been unused in this epoch
-			#by subtracting the sampledTrainFrames from trainFrameIndex  
-			unusedFrames = self.frameIndex[dataset] - self.sampledFrames[dataset]
-			self.frameIndex[dataset]
-			if(len(unusedFrames) > batchSize):  
-				#Collect batchSize number of  random frames
-				framesToRetrieve = set(random.sample(unusedFrames, batchSize)) 
-				#Mark frames in current batch as used
-				self.sampledFrames[dataset] = self.sampledFrames[dataset] | framesToRetrieve
-			else: #Not enough unused frames to fill batch. Returning remaining frames
-				framesToRetrieve = unusedFrames
-				#Clear sampled trained frames since all frames have now been sampled in this epoch
-				self.sampledFrames[dataset] = set()
+	def __getitem__(self, index):
+		startIndex = index*self.batchSize
+		try: #Full size batch
+			framesToRetrieve = self.frameIndex[startIndex : startIndex + self.batchSize]
+		except IndexError: #Retrieve small batch at the end of the array
+			framesToRetrieve = self.frameIndex[startIndex:]
 
-			#Generating batches here
-			#Convert set framesToRetrieve to list so that order is preserved for all data
-			framesToRetrieve = list(framesToRetrieve)
-
-			#metaBatch = np.array(framesToRetrieve)
-			faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve, dataset)
-			faceGridBatch = self.getFaceGrids(framesToRetrieve, dataset)
-			labelsBatch = self.getLabels(framesToRetrieve, dataset)
-
-			yield {
+		faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve)
+		faceGridBatch = self.getFaceGrids(framesToRetrieve)
+		labelsBatch = self.getLabels(framesToRetrieve)
+		if(not self.debug):
+			return {
 						'input_3' : faceBatch, 
 						'input_1' : leftEyeBatch, 
 						'input_2' : rightEyeBatch, 
 						'input_4' : faceGridBatch
 					}, labelsBatch#, metaBatch
+		else:
+			metaBatch = np.array(framesToRetrieve)
+			return {
+						'input_3' : faceBatch, 
+						'input_1' : leftEyeBatch, 
+						'input_2' : rightEyeBatch, 
+						'input_4' : faceGridBatch
+					}, labelsBatch, metaBatch
+
+	# __len__
+	# Returns the number of batches in an epoch
+	# If the number of frames is not divisible by the batchSize, num batches is rounded up
+	# Last batch is smaller than batchSize
+	def __len__(self):
+		return math.ceil(self.numFrames/self.batchSize)
+
+	def on_epoch_end(self):
+	 	random.shuffle(self.frameIndex)
 
 	# displayBatch
 	# Displays the data for each frame in the batch
