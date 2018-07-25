@@ -3,6 +3,7 @@ import json
 from keras.models import Model, load_model
 from iTrackerUI import iTrackerUI #Importing UI object
 import numpy as np
+import cv2
 
 #Importing execution parameters
 with open('predict_param.json') as f: #Open paramter file
@@ -72,35 +73,32 @@ def getFaceGrid(fgMetadata):
 	return faceGrid
 
 def predictGaze(data):
-	frameData = json.load(data)
 	prediction = None # Initializing prediction object
 	#Checking if incoming data is valid
 	if(frameData['frameInfo']['faceGrid']['isValid']):
 		#Extracting numpy arrays from string
 		#They are 1D at first and need to be reshaped
-		face = np.fromstring(frameData['image']['face'])
-		face = face.reshape(face, (224, 224))
-
-		leftEye = np.fromstring(frameData['image']['leftEye'])
-		leftEye = leftEye.reshape(leftEye, (224,224))
-
-		rightEye = np.fromstring(frameData['image']['rightEye'])
-		rightEye = rightEye.reshape(rightEye, (224,224))
-
+		face = cv2.imdecode(np.fromstring(frameData['image']['face'], dtype=np.uint8), -1)
+		#leftEye = cv2.imdecode(np.fromstring(frameData['image']['leftEye'], dtype=np.uint8), -1)
+		#rightEye = cv2.imdecode(np.fromstring(frameData['image']['rightEye'], dtype=np.uint8), -1)
+		cv2.imshow(face)
+		#cv2.imshow(leftEye)
+		#cv2.imshow(rightEye)
+		cv2.waitKey(-1)
 		#Generate facegrid from metadata
-		faceGrid = getFaceGrid(frameData['frameInfo']['faceGrid'])
-
-		predictionInput = {
-					'input_3' : face, 
-					'input_1' : leftEye, 
-					'input_2' : rightEye, 
-					'input_4' : faceGrid
-					}
-		prediction = model.predict(predictionInput)
-		print(prediction)
-	else:
-		print("Invalid data")
-	updateUI(prediction)
+	# 	faceGrid = getFaceGrid(frameData['frameInfo']['faceGrid'])
+	# 	#Creaing input dictionary to pass to model
+	# 	predictionInput = {
+	# 				'input_3' : face, 
+	# 				'input_1' : leftEye, 
+	# 				'input_2' : rightEye, 
+	# 				'input_4' : faceGrid
+	# 				}
+	# 	prediction = model.predict(predictionInput)
+	# 	print(prediction)
+	# else:
+	# 	print("Invalid data")
+	# updateUI(prediction)
 
 
 #################################### SocketIO Definitions #####################################
