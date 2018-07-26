@@ -8,6 +8,7 @@ import math
 import tarfile
 from uiUtils import yesNoPrompt, createProgressBar
 from keras.utils import Sequence
+from keras.utils.training_utils import multi_gpu_model
 
 #Used to display progress bars for file init
 
