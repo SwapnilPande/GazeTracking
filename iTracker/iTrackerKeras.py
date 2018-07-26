@@ -329,11 +329,13 @@ if __name__ == '__main__':
 
 		#Initializing the model
 		iTrackerModel = Model(inputs = [leftEyeInput, rightEyeInput, faceInput, faceGridInput], outputs = finalOutput)
+		iTrackerModelMultiGPU = multi_gpu_model(iTrackerModel, gpus=8)
+
 		#Define Stochastic Gradient descent optimizer
 		def getSGDOptimizer():
 			return SGD(lr=lrSchedule['0'], momentum=momentum, decay=decay)
 		#Compile model
-		iTrackerModel.compile(getSGDOptimizer(), loss=['mean_squared_error'], metrics=['accuracy'])
+		iTrackerModelMultiGPU.compile(getSGDOptimizer(), loss=['mean_squared_error'], metrics=['accuracy'])
 
 
 	else: #Loading model from file
@@ -348,6 +350,7 @@ if __name__ == '__main__':
 		print("Validation Accuracy: " + str(previousTrainingState['validateAccuracy']), end= " ")
 		print("Validation Loss:  " + str(previousTrainingState['validateLoss']))
 		iTrackerModel = load_model(modelPath)
+
 		iTrackerModel.load_weights(modelPath)
 
 
@@ -356,7 +359,6 @@ if __name__ == '__main__':
 	#Training model
 	print("")
 	print("Beginning Training...")
-	iTrackerModelMultiGPU = multi_gpu_model(iTrackerModel, gpus=8)
 	iTrackerModelMultiGPU.fit_generator(
 			ppTrain, 
 			epochs = numEpochs, 
