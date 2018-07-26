@@ -13,5 +13,8 @@ pathTemp = dataPathJSON['pathToTempDir']
 #Initialize Data pre-processor here
 processData.initializeData(pathToData, pathTemp, trainSetProportion, validateSetProportion)
 
+#Prompt user to select dataset
 print("Which dataset would you like to visualize?")
+dataset = uiUtils.yesNoPrompt(['train','validate','test'])
+
 

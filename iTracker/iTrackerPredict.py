@@ -13,7 +13,7 @@ with open('predict_param.json') as f: #Open paramter file
 ######################################## UI Definition ########################################
 #Initializing UI Object
 print("Initializing UI")
-#ui = iTrackerUI()
+ui = iTrackerUI()
 
 # updateUI
 # Calls the update function for pygame ui to redraw cursor at updated gze location
@@ -86,26 +86,27 @@ def predictGaze(data):
 		face = cv2.imdecode(np.asarray(frameData['Image']['face']['data'], dtype = np.int8), -1)
 		leftEye = cv2.imdecode(np.fromstring(frameData['image']['leftEye'], dtype=np.uint8), -1)
 		rightEye = cv2.imdecode(np.fromstring(frameData['image']['rightEye'], dtype=np.uint8), -1)
+
 		###TEST CODE
-		cv2.destroyAllWindows()
-		cv2.imshow("Face",face)
+		# cv2.destroyAllWindows()
+		# cv2.imshow("Face",face)
 		#cv2.imshow(leftEye)
 		#cv2.imshow(rightEye)
 
 		#Generate facegrid from metadata
-	# 	faceGrid = getFaceGrid(frameData['frameInfo']['faceGrid'])
-	# 	#Creaing input dictionary to pass to model
-	# 	predictionInput = {
-	# 				'input_3' : face, 
-	# 				'input_1' : leftEye, 
-	# 				'input_2' : rightEye, 
-	# 				'input_4' : faceGrid
-	# 				}
-	# 	prediction = model.predict(predictionInput)
-	# 	print(prediction)
-	# else:
-	# 	print("Invalid data")
-	# updateUI(prediction)
+		faceGrid = getFaceGrid(frameData['frameInfo']['faceGrid'])
+		#Creaing input dictionary to pass to model
+		predictionInput = {
+					'input_3' : face, 
+					'input_1' : leftEye, 
+					'input_2' : rightEye, 
+					'input_4' : faceGrid
+					}
+		prediction = model.predict(predictionInput)
+		print(prediction)
+	else:
+		print("Invalid Data")
+	updateUI(prediction)
 
 
 #################################### SocketIO Definitions #####################################
@@ -113,10 +114,10 @@ def on_connect():
     print('Connected')
 
 def on_disconnect():
-    print('disconnect')
+    print('Disconnected')
 
 def on_reconnect():
-    print('reconnect')
+    print('Reconnected')
 
 #Passes receeived frame data to predictGaze function to genreate predicted gaze location
 def frameReceived(data):

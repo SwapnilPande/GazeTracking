@@ -16,13 +16,20 @@ def yesNoPrompt():
 # Accepts a number input to select an option from a list
 # 
 def listOptionsPrompt(options):
-	for option in options:
-
+	selection = None
+	for i, option in enumerate(options):
+		print(str(i+1) + ": " + str(option))
 	response = input()
-	while(response.lower() != 'y' and response.lower() != 'n'):
-		print("Enter only y or n:")
+	while True:
+		try:
+			selection = int(response)
+			if(selection > 0 and selection <= len(options)):
+				break
+		except:
+			pass
+		print("Enter a selection between 1 and " + str(len(options)))
 		response = input()
-	return (response == 'y')
+	return options[selection-1]
 
 # createProgress Bar
 # Initializes a progress bar object with an optional max value
@@ -33,3 +40,5 @@ def createProgressBar(maxVal = None):
 	if(maxVal != None):
 		return ProgressBar(maxval = maxVal)
 	return ProgressBar()
+
+print(listOptionsPrompt(['test', 'train', 'validate']))
