@@ -86,6 +86,7 @@ if __name__ == '__main__':
 	#Import initializers for weights and biases
 	from keras.initializers import Zeros, RandomNormal
 	from keras.optimizers import SGD
+	from keras.utils.training_utils import multi_gpu_model
 
 	#Import callbacks for training
 	from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler
