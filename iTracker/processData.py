@@ -74,7 +74,12 @@ def initializeData(pathToData, pathTemp, trainProportion, validateProportion):
 		print('\tNumber of test subjects: ' + str(numExistTest) + " (" + str(proportionExistTest) + ")")			
 		print()
 		print('Remove data and unpack fresh data? (y/n)')
-		if(yesNoPrompt()): #Prompt user for input & Delete directory 
+		deleteData = False #Flag to store whether user wants to delete data
+		if(yesNoPrompt()): #Prompt user for input
+			print("Are you sure? THIS WILL DELETE ALL UNPACKED DATA (y/n)") #Confirm that user actually wants to delete existing data
+			if(yesNoPrompt()):
+				deleteData = True
+		if(deleteData):
 			shutil.rmtree(tempDataDir)
 			os.mkdir(tempDataDir)
 			os.mkdir(trainDir)
