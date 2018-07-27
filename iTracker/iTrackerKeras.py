@@ -15,7 +15,8 @@ from time import time
 from uiUtils import yesNoPrompt
 #Custom datset processor
 import processData
-
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 #Function definitions for defining model
 def randNormKernelInitializer():
@@ -329,13 +330,13 @@ if __name__ == '__main__':
 
 		#Initializing the model
 		iTrackerModel = Model(inputs = [leftEyeInput, rightEyeInput, faceInput, faceGridInput], outputs = finalOutput)
-		iTrackerModelMultiGPU = multi_gpu_model(iTrackerModel, gpus=8)
+		#iTrackerModelMultiGPU = multi_gpu_model(iTrackerModel, gpus=8)
 
 		#Define Stochastic Gradient descent optimizer
 		def getSGDOptimizer():
 			return SGD(lr=lrSchedule['0'], momentum=momentum, decay=decay)
 		#Compile model
-		iTrackerModelMultiGPU.compile(getSGDOptimizer(), loss=['mean_squared_error'], metrics=['accuracy'])
+		iTrackerModel.compile(getSGDOptimizer(), loss=['mean_squared_error'], metrics=['accuracy'])
 
 
 	else: #Loading model from file
@@ -366,7 +367,7 @@ if __name__ == '__main__':
 			callbacks = callbacks,
 			initial_epoch = initialEpoch,
 			use_multiprocessing = True,
-			workers = 1
+			workers = 4
 		)
 
 
