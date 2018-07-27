@@ -15,8 +15,6 @@ from time import time
 from uiUtils import yesNoPrompt
 #Custom datset processor
 import processData
-import os
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 #Function definitions for defining model
 def randNormKernelInitializer():
@@ -197,7 +195,7 @@ if __name__ == '__main__':
 
 
 	#DEFINING CALLBACKS HERE
-	logPeriod = 10 #Frequency at which to log data
+	logPeriod = 1 #Frequency at which to log data
 	#Checkpoints
 	checkpointFilepath = pathLogging + '/checkpoints/' +'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5'
 	checkpointCallback = ModelCheckpoint(
@@ -374,7 +372,7 @@ if __name__ == '__main__':
 	#Evaluate model here
 	testLoss = iTrackerModel.evaluate_generator(
 		ppTest,
-		steps = math.ceil(pp.numTestFrames/testBatchSize)
+		steps = math.ceil(len(ppTest))
 	)
 
 	iTrackerModel.save(pathLogging + "/finalModel.h5")
