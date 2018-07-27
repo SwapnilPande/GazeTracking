@@ -360,7 +360,7 @@ if __name__ == '__main__':
 	#Training model
 	print("")
 	print("Beginning Training...")
-	iTrackerModelMultiGPU.fit_generator(
+	iTrackerModel.fit_generator(
 			ppTrain, 
 			epochs = numEpochs, 
 			validation_data = ppValidate, 
