@@ -159,7 +159,7 @@ class DataPreProcessor(Sequence):
 
 		#Initializing other variables
 		self.batchSize = batchSize
-
+	
 	# cleanup
 	# Should be called at the time of destroying the Preprocessor object
 	# Deletes the temporary directory from the filesystem
@@ -492,44 +492,6 @@ class DataPreProcessor(Sequence):
 	def on_epoch_end(self):
 	 	random.shuffle(self.frameIndex)
 
-	# displayBatch
-	# Displays the data for each frame in the batch
-	# Prints facegrid and labels to console and displays images
-	# Arguments:
-	# input - Dictionary containing face, left eye, right eye, and facegrid data
-	# labels - Numpy array containing the labels for each frame
-	# meta - Numpy array containing subject & frame number for each frame
-	# Note: Arguments are created by generateBatch() and should be passed
-	# without modification
-	# Press esc to stop outputting frame, press any key to go to next frame
-	def displayBatch(self, input, labels, meta):
-		for i, (f, l, r, fg, lb, meta) in enumerate(zip(input['face'],
-													input['leftEye'],
-													input['rightEye'],
-													input['faceGrid'],
-													labels,
-													meta)):
-			#Title String
-			title =  'Image #' + str(i) 
-			title += ': Subject ' + str(meta)
-			print(title)
-
-			print('LABELS')
-			print(lb)
-			fgDisplay = cv2.resize(np.reshape(fg, (25,25)), (224,224))
-			fgDisplay = np.stack((fgDisplay, fgDisplay, fgDisplay), axis = 2)
-			
-			#Place 3 images side by side to display
-			output = np.concatenate((f, fgDisplay, l, r), axis = 1)
-			#Show images
-			cv2.imshow(title, output)
-
-
-			#Wait for key input
-			key = cv2.waitKey(0)
-			if(key == 27):
-				break
-			cv2.destroyAllWindows()
 	
 
 

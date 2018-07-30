@@ -41,4 +41,3 @@ def createProgressBar(maxVal = None):
 		return ProgressBar(maxval = maxVal)
 	return ProgressBar()
 
-print(listOptionsPrompt(['test', 'train', 'validate']))
