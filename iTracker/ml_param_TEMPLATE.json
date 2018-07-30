@@ -5,7 +5,7 @@
 		"prexistingModelPath" : "",
 		"trainLogFile": ""
 	},
-	"trainingHyperparameters:" :
+	"trainingHyperparameters" :
 	{
 		"learningRate" : 
 		{
