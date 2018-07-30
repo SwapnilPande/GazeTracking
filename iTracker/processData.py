@@ -7,6 +7,7 @@ import shutil
 import math
 import tarfile
 from keras.utils import Sequence
+from keras.utils.training_utils import multi_gpu_model
 from uiUtils import yesNoPrompt, createProgressBar
 import imageUtils
 
@@ -59,15 +60,28 @@ def initializeData(pathToData, pathTemp, trainProportion, validateProportion):
 		numExistValidate = len(os.listdir(validateDir))
 		numExistTest = len(os.listdir(testDir))
 		totalExist = numExistTest + numExistTrain + numExistValidate
+		if(totalExist != 0):
+			proportionExistTrain = numExistTrain/totalExist
+			proportionExistValidate = numExistValidate/totalExist
+			proportionExistTest = numExistTest/totalExist
+		else:
+			proportionExistTrain = 0
+			proportionExistValidate = 0
+			proportionExistTest = 0
 
 		print('Temporary directory already exists with following data')
 		print("\tTotal number of subjects: " + str(totalExist))
-		print('\tNumber of training subjects: ' + str(numExistTrain) + " (" + str(numExistTrain/totalExist) + ")")
-		print('\tNumber of validation subjects: ' + str(numExistValidate) + "( " + str(numExistValidate/totalExist) + ")")
-		print('\tNumber of test subjects: ' + str(numExistTest) + " (" + str(numExistTest/totalExist) + ")")			
+		print('\tNumber of training subjects: ' + str(numExistTrain) + " (" + str(proportionExistTrain) + ")")
+		print('\tNumber of validation subjects: ' + str(numExistValidate) + " (" + str(proportionExistValidate) + ")")
+		print('\tNumber of test subjects: ' + str(numExistTest) + " (" + str(proportionExistTest) + ")")			
 		print()
 		print('Remove data and unpack fresh data? (y/n)')
-		if(yesNoPrompt()): #Prompt user for input & Delete directory 
+		deleteData = False #Flag to store whether user wants to delete data
+		if(yesNoPrompt()): #Prompt user for input
+			print("Are you sure? THIS WILL DELETE ALL UNPACKED DATA (y/n)") #Confirm that user actually wants to delete existing data
+			if(yesNoPrompt()):
+				deleteData = True
+		if(deleteData):
 			shutil.rmtree(tempDataDir)
 			os.mkdir(tempDataDir)
 			os.mkdir(trainDir)
@@ -80,32 +94,32 @@ def initializeData(pathToData, pathTemp, trainProportion, validateProportion):
 				print("Using existing data. Ignoring train and validate proportions provided and using existing distribution.")
 			else: #Cannot unpack or use existing, exit program
 				raise FileExistsError('Cannot operate on non-empty temp directory. Clean directory or select a new directory.')
-		print()
-		if(not useExistingData): #Need to unpack new data
-			#Unzip data for all subjects, write to temp directory
-			print('Unpacking subject data into temporary directory: ' + tempDataDir)
-			print('Splitting data into training, validation, and test sets')
-			#Randomize order of subjects to randomize test, training, and validations ets
-			random.shuffle(subjectDirs)
-			#Init Progress bar
-			pbar = createProgressBar(maxVal=len(subjectDirs))
-			pbar.start()
-			for i, subject in pbar(enumerate(subjectDirs)):
-				if(i < numTrainSubjects): #Write to training data folder
-					with tarfile.open(subject, 'r:*') as f:
-						f.extractall(trainDir)
-				elif(i < numTrainSubjects + numValidateSubjects): #Validation folder
-					with tarfile.open(subject, 'r:*') as f:
-						f.extractall(validateDir)
-				else: #Test folder
-					with tarfile.open(subject, 'r:*') as f:
-						f.extractall(testDir)
-				pbar.update(i)
-			pbar.finish()
-			print("Number of training subjects: " + str(numTrainSubjects))
-			print('Number of validation subjects: ' + str(numValidateSubjects))
-			print('Number of test subjects: ' + str(numTestSubjects))
-			print()	
+	print()
+	if(not useExistingData): #Need to unpack new data
+		#Unzip data for all subjects, write to temp directory
+		print('Unpacking subject data into temporary directory: ' + tempDataDir)
+		print('Splitting data into training, validation, and test sets')
+		#Randomize order of subjects to randomize test, training, and validations ets
+		random.shuffle(subjectDirs)
+		#Init Progress bar
+		pbar = createProgressBar(maxVal=len(subjectDirs))
+		pbar.start()
+		for i, subject in pbar(enumerate(subjectDirs)):
+			if(i < numTrainSubjects): #Write to training data folder
+				with tarfile.open(subject, 'r:*') as f:
+					f.extractall(trainDir)
+			elif(i < numTrainSubjects + numValidateSubjects): #Validation folder
+				with tarfile.open(subject, 'r:*') as f:
+					f.extractall(validateDir)
+			else: #Test folder
+				with tarfile.open(subject, 'r:*') as f:
+					f.extractall(testDir)
+			pbar.update(i)
+		pbar.finish()
+		print("Number of training subjects: " + str(numTrainSubjects))
+		print('Number of validation subjects: ' + str(numValidateSubjects))
+		print('Number of test subjects: ' + str(numTestSubjects))
+		print()	
 		print('Data initialization successful!')
 
 

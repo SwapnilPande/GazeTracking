@@ -16,7 +16,6 @@ from uiUtils import yesNoPrompt
 #Custom datset processor
 import processData
 
-
 #Function definitions for defining model
 def randNormKernelInitializer():
 	return RandomNormal(stddev= 0.01)
@@ -86,6 +85,7 @@ if __name__ == '__main__':
 	#Import initializers for weights and biases
 	from keras.initializers import Zeros, RandomNormal
 	from keras.optimizers import SGD
+	from keras.utils.training_utils import multi_gpu_model
 
 	#Import callbacks for training
 	from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler
@@ -195,7 +195,7 @@ if __name__ == '__main__':
 
 
 	#DEFINING CALLBACKS HERE
-	logPeriod = 10 #Frequency at which to log data
+	logPeriod = 1 #Frequency at which to log data
 	#Checkpoints
 	checkpointFilepath = pathLogging + '/checkpoints/' +'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5'
 	checkpointCallback = ModelCheckpoint(
@@ -328,6 +328,8 @@ if __name__ == '__main__':
 
 		#Initializing the model
 		iTrackerModel = Model(inputs = [leftEyeInput, rightEyeInput, faceInput, faceGridInput], outputs = finalOutput)
+		#iTrackerModelMultiGPU = multi_gpu_model(iTrackerModel, gpus=8)
+
 		#Define Stochastic Gradient descent optimizer
 		def getSGDOptimizer():
 			return SGD(lr=lrSchedule['0'], momentum=momentum, decay=decay)
@@ -347,6 +349,7 @@ if __name__ == '__main__':
 		print("Validation Accuracy: " + str(previousTrainingState['validateAccuracy']), end= " ")
 		print("Validation Loss:  " + str(previousTrainingState['validateLoss']))
 		iTrackerModel = load_model(modelPath)
+
 		iTrackerModel.load_weights(modelPath)
 
 
@@ -362,14 +365,14 @@ if __name__ == '__main__':
 			callbacks = callbacks,
 			initial_epoch = initialEpoch,
 			use_multiprocessing = True,
-			workers = 1
+			workers = 4
 		)
 
 
 	#Evaluate model here
 	testLoss = iTrackerModel.evaluate_generator(
 		ppTest,
-		steps = math.ceil(pp.numTestFrames/testBatchSize)
+		steps = math.ceil(len(ppTest))
 	)
 
 	iTrackerModel.save(pathLogging + "/finalModel.h5")

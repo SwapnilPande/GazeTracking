@@ -5,3 +5,4 @@ config.py
 *.pyc
 *.hdf5
 iTracker-log*
+predict_param.json
