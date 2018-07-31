@@ -202,6 +202,9 @@ if __name__ == '__main__':
 	callbacks = [checkpointCallback, tensorboard, learningRateScheduler, loggerCallback]
 
 	##################################### IMPORT MODEL ####################################
+	#Define Stochastic Gradient descent optimizer
+	def getSGDOptimizer():
+		return SGD(lr=lrSchedule['0'], momentum=momentum, decay=decay)
 	if(not loadModel): #Build and compile ML model, training model from scratch
 		if(useMultiGPU):
 			with tf.device("/cpu:0"):
@@ -216,11 +219,6 @@ if __name__ == '__main__':
 
 		#Set initial values
 		initialEpoch = 0
-
-		#Define Stochastic Gradient descent optimizer
-		def getSGDOptimizer():
-			return SGD(lr=lrSchedule['0'], momentum=momentum, decay=decay)
-
 		#Compile model
 		iTrackerModel.compile(getSGDOptimizer(), loss=['mse'])
 
@@ -239,6 +237,8 @@ if __name__ == '__main__':
 				#This is the model to be saved
 				iTrackerModelSave = load_model(modelPath) #Retrieve iTracker Model
 			iTrackerModel = multi_gpu_model(iTrackerModelSave, numGPU) 
+			#Compile model
+			iTrackerModel.compile(getSGDOptimizer(), loss=['mse'])
 			print("Using " + str(numGPU) + " GPUs")
 		else:
 			iTrackerModel = load_model(modelPath)
