@@ -252,7 +252,7 @@ if __name__ == '__main__':
 			validation_data = ppValidate, 
 			callbacks = callbacks,
 			initial_epoch = initialEpoch,
-			use_multiprocessing = True,
+			use_multiprocessing = False,
 			workers = numWorkers
 		)
 
