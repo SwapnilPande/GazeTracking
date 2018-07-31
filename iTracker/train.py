@@ -24,7 +24,9 @@ if __name__ == '__main__':
 	from keras.utils.training_utils import multi_gpu_model
 	from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler #Import callbacks for training
 
-
+	#Tensorflow device
+	import tensorflow as tf
+	
 	#Custom imports
 	from uiUtils import yesNoPrompt #UI prompts
 	from customCallbacks import Logger #Logger callback for logging training progress
