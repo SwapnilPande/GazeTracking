@@ -238,7 +238,7 @@ class DataPreProcessor(Sequence):
 					#Generate path for frame
 					framePath = subjectPath + "/frames/" + frame
 					#Write file path to index
-					if(not loadedData):
+					if(not loadAllData):
 						frameIndex.append(framePath)
 					else:
 						frameIndex.append(frameNum)
