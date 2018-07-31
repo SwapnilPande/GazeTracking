@@ -143,6 +143,7 @@ class DataPreProcessor(Sequence):
 	#			each of these keys refers to a dictionary containing the necessary metadata to describe feature
 	# sampledFrames - stores sets that described the data that has already been sampled in the current epoch
 	def __init__(self, pathToData, pathTemp, batchSize, dataset, debug = False, loadAllData = True):
+		self.loadedData = False
 
 		self.debug = debug
 		if(not(dataset in ['test', 'validate', 'train'])):
@@ -159,6 +160,7 @@ class DataPreProcessor(Sequence):
 		print('Building index and collecting metadata for ' + dataset + ' dataset')
 		if(loadAllData):
 			self.frameIndex, self.metadata, self.frames = self.indexData(self.tempDataDir, loadAllData)
+			self.loadedData = True
 		else:
 			self.frameIndex, self.metadata = self.indexData(self.tempDataDir, loadAllData)
 
@@ -177,7 +179,6 @@ class DataPreProcessor(Sequence):
 		#Initializing other variables
 		self.batchSize = batchSize
 
-		self.loadedData = True
 
 
 	# cleanup
