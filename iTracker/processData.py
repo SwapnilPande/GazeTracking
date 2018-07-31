@@ -175,9 +175,9 @@ class DataPreProcessor(Sequence):
 		random.shuffle(self.frameIndex)
 
 		#Initializing other variables
-		 self.batchSize = batchSize
+		self.batchSize = batchSize
 
-		 self.loadedData = True
+		self.loadedData = True
 
 
 	# cleanup
