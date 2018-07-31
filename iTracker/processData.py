@@ -142,7 +142,7 @@ class DataPreProcessor(Sequence):
 	# 			each dictionary contains 5 keys: face, leftEye, rightEye, faceGrid, and label
 	#			each of these keys refers to a dictionary containing the necessary metadata to describe feature
 	# sampledFrames - stores sets that described the data that has already been sampled in the current epoch
-	def __init__(self, pathToData, pathTemp, batchSize, dataset, debug = False):
+	def __init__(self, pathToData, pathTemp, batchSize, dataset, debug = False, loadAllData = True):
 		self.debug = debug
 		if(not(dataset in ['test', 'validate', 'train'])):
 			raise ValueError("Invalid dataset. Dataset can only be test, train, or validate.")
@@ -171,7 +171,21 @@ class DataPreProcessor(Sequence):
 		random.shuffle(self.frameIndex)
 
 		#Initializing other variables
+		print("Just kidding... Loading all data into memory")
 		self.batchSize = batchSize
+		if(loadAllData):
+			self.inputs = []
+			self.labels = []
+			pbar = createProgressBar(maxVal=self.__len__())
+			for i in range(0,self.__len__()):
+				batchInputs, batchLabels = self.__getitem__(i)
+				self.inputs.append(input)
+				self.labels.append(label)
+				pbar.update()
+			self.loadedDataIndex = [x for x in range(0, self.numFrames)]
+			self.loadadData = True
+		else:
+			self.loadedData = False
 
 	# cleanup
 	# Should be called at the time of destroying the Preprocessor object
@@ -500,29 +514,34 @@ class DataPreProcessor(Sequence):
 	# 	Metadata describes the subject and frame number for each image 
 	def __getitem__(self, index):
 		startIndex = index*self.batchSize
-		try: #Full size batch
-			framesToRetrieve = self.frameIndex[startIndex : startIndex + self.batchSize]
-		except IndexError: #Retrieve small batch at the end of the array
-			framesToRetrieve = self.frameIndex[startIndex:]
+		if(not self.loadadData):
+			try: #Full size batch
+				framesToRetrieve = self.frameIndex[startIndex : startIndex + self.batchSize]
+			except IndexError: #Retrieve small batch at the end of the array
+				framesToRetrieve = self.frameIndex[startIndex:]
 
-		faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve)
-		faceGridBatch = self.getFaceGrids(framesToRetrieve)
-		labelsBatch = self.getLabels(framesToRetrieve)
-		if(not self.debug):
-			return {
-						'input_3' : faceBatch, 
-						'input_1' : leftEyeBatch, 
-						'input_2' : rightEyeBatch, 
-						'input_4' : faceGridBatch
-					}, labelsBatch#, metaBatch
+			faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve)
+			faceGridBatch = self.getFaceGrids(framesToRetrieve)
+			labelsBatch = self.getLabels(framesToRetrieve)
+			if(not self.debug):
+				return {
+							'input_3' : faceBatch, 
+							'input_1' : leftEyeBatch, 
+							'input_2' : rightEyeBatch, 
+							'input_4' : faceGridBatch
+						}, labelsBatch#, metaBatch
+			else:
+				metaBatch = np.array(framesToRetrieve)
+				return {
+							'input_3' : faceBatch, 
+							'input_1' : leftEyeBatch, 
+							'input_2' : rightEyeBatch, 
+							'input_4' : faceGridBatch
+						}, labelsBatch, metaBatch
 		else:
-			metaBatch = np.array(framesToRetrieve)
-			return {
-						'input_3' : faceBatch, 
-						'input_1' : leftEyeBatch, 
-						'input_2' : rightEyeBatch, 
-						'input_4' : faceGridBatch
-					}, labelsBatch, metaBatch
+			return self.inputs[self.loadedDataIndex[i]],self.labels[self.loadedDataIndex[i]],
+
+
 
 	# __len__
 	# Returns the number of batches in an epoch
@@ -531,8 +550,11 @@ class DataPreProcessor(Sequence):
 	def __len__(self):
 		return math.ceil(self.numFrames/self.batchSize)
 
-	def on_epoch_end(self):
-	 	random.shuffle(self.frameIndex)
+	def on_epoch_begin(self):
+		if(loadedData):
+			random.shuffle(self.loadedDataIndex)
+		else:
+	 		random.shuffle(self.frameIndex)
 
 	# displayBatch
 	# Displays the data for each frame in the batch

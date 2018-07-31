@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
 	#Tensorflow device
 	import tensorflow as tf
-	
+
 	#Custom imports
 	from uiUtils import yesNoPrompt #UI prompts
 	from customCallbacks import Logger #Logger callback for logging training progress
@@ -136,7 +136,7 @@ if __name__ == '__main__':
 
 
 	#Initialize Data pre-processor here
-	ppTrain = processData.DataPreProcessor(pathToData, pathTemp, trainBatchSize, 'train')
+	ppTrain = processData.DataPreProcessor(pathToData, pathTemp, trainBatchSize, 'train', loadAllData = True)
 	ppValidate = processData.DataPreProcessor(pathToData, pathTemp, validateBatchSize, 'validate')
 	ppTest =  processData.DataPreProcessor(pathToData, pathTemp, testBatchSize, 'test')
 	#Initialize Logging Dir here
@@ -246,7 +246,7 @@ if __name__ == '__main__':
 			validation_data = ppValidate, 
 			callbacks = callbacks,
 			initial_epoch = initialEpoch,
-			use_multiprocessing = True,
+			use_multiprocessing = False,
 			workers = numWorkers
 		)
 
