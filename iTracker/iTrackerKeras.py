@@ -52,10 +52,10 @@ def createPadding(pad):
 	return ZeroPadding2D(padding=pad)
 
 
-def createFullyConnected(units):
+def createFullyConnected(units, activation = 'relu'):
 	return Dense(
 		units,
-	 	activation = 'relu',
+	 	activation = activation,
 	 	use_bias = True,
 	 	kernel_initializer = randNormKernelInitializer(),
 		bias_initializer = 'zeros'
@@ -267,7 +267,7 @@ if __name__ == '__main__':
 
 		#Define fully connected layers for eyes & face & face grid
 		fullyConnected1 = createFullyConnected(128)
-		fullyConnected2 = createFullyConnected(2)
+		fullyConnected2 = createFullyConnected(2, 'linear')
 
 
 		#Defining dataflow through layers
@@ -334,7 +334,7 @@ if __name__ == '__main__':
 		def getSGDOptimizer():
 			return SGD(lr=lrSchedule['0'], momentum=momentum, decay=decay)
 		#Compile model
-		iTrackerModel.compile(getSGDOptimizer(), loss=['mean_squared_error'], metrics=['accuracy'])
+		iTrackerModel.compile(getSGDOptimizer(), loss=['mean_squared_error'])
 
 
 	else: #Loading model from file
@@ -344,9 +344,7 @@ if __name__ == '__main__':
 		print("Previous training ended at: ")
 		print("Epoch: " + str(previousTrainingState['epoch']))
 		print("Learning Rate: " + str(previousTrainingState['learningRate']))
-		print("Training Accuracy: " + str(previousTrainingState['trainAccuracy']), end= " ")
 		print("Training Loss:  " + str(previousTrainingState['trainLoss']))
-		print("Validation Accuracy: " + str(previousTrainingState['validateAccuracy']), end= " ")
 		print("Validation Loss:  " + str(previousTrainingState['validateLoss']))
 		iTrackerModel = load_model(modelPath)
 

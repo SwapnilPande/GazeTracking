@@ -20,9 +20,7 @@ class Logger(Callback):
 			self.epochs_since_last_save = 0
 			print("Generating checkpoint and logs")
 			trainState = {
-            	"trainAccuracy" : logs['acc'],
             	"trainLoss" : logs['loss'],
-            	"validateAccuracy" : logs['val_acc'],
             	"validateLoss" : logs['val_loss'],
             	"epoch" : epoch,
             	"learningRate" : float(K.get_value(self.model.optimizer.lr))
