@@ -143,6 +143,7 @@ class DataPreProcessor(Sequence):
 	#			each of these keys refers to a dictionary containing the necessary metadata to describe feature
 	# sampledFrames - stores sets that described the data that has already been sampled in the current epoch
 	def __init__(self, pathToData, pathTemp, batchSize, dataset, debug = False, loadAllData = True):
+
 		self.debug = debug
 		if(not(dataset in ['test', 'validate', 'train'])):
 			raise ValueError("Invalid dataset. Dataset can only be test, train, or validate.")
@@ -156,7 +157,10 @@ class DataPreProcessor(Sequence):
 		#Stores the paths to all valid frames
 		#Note: path is relative to working dir, not training data dir
 		print('Building index and collecting metadata for ' + dataset + ' dataset')
-		self.frameIndex, self.metadata = self.indexData(self.tempDataDir)
+		if(loadAllData):
+			self.frameIndex, self.metadata, self.frames = self.indexData(self.tempDataDir, loadAllData)
+		else:
+			self.frameIndex, self.metadata = self.indexData(self.tempDataDir, loadAllData)
 
 		#Get Number of frames
 		self.numFrames = len(self.frameIndex)
@@ -171,20 +175,10 @@ class DataPreProcessor(Sequence):
 		random.shuffle(self.frameIndex)
 
 		#Initializing other variables
-		self.batchSize = batchSize
-		self.loadedData = False
-		if(loadAllData):
-			print("Just kidding... Loading all data into memory")
-			self.inputs = []
-			self.labels = []
-			pbar = createProgressBar(maxVal=self.__len__())
-			for i in range(0,self.__len__()):
-				batchInput, batchLabel = self.__getitem__(i)
-				self.inputs.append(batchInput)
-				self.labels.append(batchLabel)
-				pbar.update()
-			self.loadedDataIndex = [x for x in range(0, self.numFrames)]
-			self.loadedData = True
+		 self.batchSize = batchSize
+
+		 self.loadedData = True
+
 
 	# cleanup
 	# Should be called at the time of destroying the Preprocessor object
@@ -212,14 +206,17 @@ class DataPreProcessor(Sequence):
 	# Returns:
 	# frameIndex - A set containing the filepaths to all valid frames in the dataset
 	# metadata = A dictionary containing the metadata for each frame
-	def indexData(self, path):
+	def indexData(self, path, loadAllData):
 		#Getting unzipped subject dirs
 		subjectDirs = os.listdir(path=path)
 
 		#Declare index lists and metadata dictionary to return
+		if(loadAllData):
+			frames = []
 		frameIndex = []
 		metadata = {}
 		pbar = createProgressBar()
+		frameNum = 0
 		for subject in pbar(subjectDirs):
 			subjectPath = path + "/" + subject
 			#Stores the name of the frame files in the frames dir
@@ -241,7 +238,12 @@ class DataPreProcessor(Sequence):
 					#Generate path for frame
 					framePath = subjectPath + "/frames/" + frame
 					#Write file path to index
-					frameIndex.append(framePath)
+					if(not loadedData):
+						frameIndex.append(framePath)
+					else:
+						frameIndex.append(frameNum)
+						frames.append(self.getImage(framePath))
+					frameNum++
 					#Build the dictionary containing the metadata for a frame
 					metadata[framePath] = {
 						'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
@@ -250,7 +252,10 @@ class DataPreProcessor(Sequence):
 						'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
 						'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
 					}
-		return frameIndex, metadata
+		if(loadAllData):
+			return frameIndex, metadata, frames
+		else:
+			return frameIndex, metadata
 
 	# getFramesJSON
 	# Loads frames.json to a dictionary
@@ -322,7 +327,10 @@ class DataPreProcessor(Sequence):
 	# imagePath - path to image to retrieve
 	# Returns numpy array containing the image
 	def getImage(self, imagePath):
-		return 	cv2.imread(imagePath)
+		if(self.loadedData):
+			return self.images[imagePath]
+		else:
+			return 	cv2.imread(imagePath)
 
 
 
