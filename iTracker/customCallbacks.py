@@ -20,7 +20,7 @@ class Logger(Callback):
 			self.epochs_since_last_save = 0
 			print("Generating checkpoint and logs")
 			trainState = {
-            	"trainAccuracy" : logs['acc'],
+				"trainAccuracy" : logs['acc'],
             	"trainLoss" : logs['loss'],
             	"validateAccuracy" : logs['val_acc'],
             	"validateLoss" : logs['val_loss'],
