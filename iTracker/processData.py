@@ -243,7 +243,7 @@ class DataPreProcessor(Sequence):
 					else:
 						frameIndex.append(frameNum)
 						frames.append(self.getImage(framePath))
-					frameNum++
+					frameNum += 1
 					#Build the dictionary containing the metadata for a frame
 					metadata[framePath] = {
 						'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
