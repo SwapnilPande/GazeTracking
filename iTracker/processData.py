@@ -179,9 +179,9 @@ class DataPreProcessor(Sequence):
 			self.labels = []
 			pbar = createProgressBar(maxVal=self.__len__())
 			for i in range(0,self.__len__()):
-				batchInputs, batchLabels = self.__getitem__(i)
-				self.inputs.append(input)
-				self.labels.append(label)
+				batchInput, batchLabel = self.__getitem__(i)
+				self.inputs.append(batchInput)
+				self.labels.append(batchLabel)
 				pbar.update()
 			self.loadedDataIndex = [x for x in range(0, self.numFrames)]
 			self.loadedData = True
