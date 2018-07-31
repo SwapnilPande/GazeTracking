@@ -183,7 +183,7 @@ class DataPreProcessor(Sequence):
 				self.labels.append(label)
 				pbar.update()
 			self.loadedDataIndex = [x for x in range(0, self.numFrames)]
-			self.loadadData = True
+			self.loadedData = True
 		else:
 			self.loadedData = False
 
@@ -514,7 +514,7 @@ class DataPreProcessor(Sequence):
 	# 	Metadata describes the subject and frame number for each image 
 	def __getitem__(self, index):
 		startIndex = index*self.batchSize
-		if(not self.loadadData):
+		if(not self.loadedData):
 			try: #Full size batch
 				framesToRetrieve = self.frameIndex[startIndex : startIndex + self.batchSize]
 			except IndexError: #Retrieve small batch at the end of the array
