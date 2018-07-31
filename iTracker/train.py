@@ -1,95 +1,38 @@
 if __name__ == '__main__':
-	#Run Config
+	#Run pre-train config
 	try:
 		import config
+		print("Running config from config.py")
 		config.run_config()
 	except ImportError:
 		print("Unable to load config.py - Executing program with no pre-runtime configuration")
 
-
-from customCallbacks import Logger
-
-import os, shutil, math, json
+#General imports
+import os, shutil
+import math, json
 from time import time
 
-from uiUtils import yesNoPrompt
-#Custom datset processor
-import processData
 
-#Function definitions for defining model
-def randNormKernelInitializer():
-	return RandomNormal(stddev= 0.01)
-
-# createConvLayer
-# Function to simplify the process of creating a convolutional layer for iCapture
-# Populates parameters that are common for all convolutional layers in network
-#
-# INPUTS
-# filters - Number of feature layers in the output
-# kernel_size - dimension of kernel in pixels - creates square kernel
-# stride - Stride taken during convolution
-#
-# Returns a Conv2D object describing the new layer
-def createConvLayer(filters, kernelSize, stride):
-	return Conv2D(
-		filters,
-		kernelSize, 
-		strides = stride,
-		activation = 'relu',
-		use_bias = True,
-		kernel_initializer = randNormKernelInitializer(),
-		bias_initializer = 'zeros'
-		)
-
-# createMaxPool
-# Function to simplify the process of creating a MaxPooling layer
-# Populates parameters that are common for all maxpool layers in net
-# Returns a MaxPooling2D object describing the new layer
-def createMaxPool():
-	return MaxPooling2D(pool_size = 3, strides = 2)
-
-def createPadding(pad):
-	return ZeroPadding2D(padding=pad)
-
-
-def createFullyConnected(units, activation = 'relu'):
-	return Dense(
-		units,
-	 	activation = activation,
-	 	use_bias = True,
-	 	kernel_initializer = randNormKernelInitializer(),
-		bias_initializer = 'zeros'
-	 	)
-# lrScheduler
-# Function for the Learning Rate Scheduler to output the LR based on the provided input
-#  If dictionary contains entry for current epoch, function returns associated learning rate from dict
-# Else, will return current learning rate
-# Arguments:
-# epoch - The current epoch number, 0-indexed
-# learningRate - Current learning Rate
-# Returns learning rate as floating point number
-def lrScheduler(epoch, learningRate):
-	if(str(epoch) in lrSchedule): #Update learning rate
-		print("Setting learning rate: Epoch #" + str(epoch) + ', Learning Rate = ' + str(lrSchedule[str(epoch)]))
-		return lrSchedule[str(epoch)]
-	return learningRate #No need to update learning rate, return current learning rate
-
-######################### Begin Execution ###############################
 if __name__ == '__main__':
 	#TODO Determine how to use learning rate multipliers
 	#TODO Determine how to use grouping in convolutional layer
 	#TODO Determine how to create LRN layer
+
+	#Keras imports
 	from keras.models import Model, load_model
-	#Import necessary layers for model
-	from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D
-	#Import initializers for weights and biases
-	from keras.initializers import Zeros, RandomNormal
 	from keras.optimizers import SGD
 	from keras.utils.training_utils import multi_gpu_model
+	from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler #Import callbacks for training
 
-	#Import callbacks for training
-	from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler
-	################### LOAD DATA AND HYPERPARAMETERS #######################
+
+	#Custom imports
+	from uiUtils import yesNoPrompt #UI prompts
+	from customCallbacks import Logger #Logger callback for logging training progress
+	import processData 	#Custom datset processor
+	import iTrackerModel #Machine learning model import
+
+
+	############################ LOAD DATA AND HYPERPARAMETERS ############################
 	lrSchedule = {} #Dict containing epoch as key, and learning rate as value
 
 	#Define ML parameters
@@ -194,9 +137,10 @@ if __name__ == '__main__':
 	print("")
 
 
-	#DEFINING CALLBACKS HERE
+	################################### DEFINE CALLBACKS ##################################
 	logPeriod = 1 #Frequency at which to log data
-	#Checkpoints
+
+	#Model Checkpoint callback
 	checkpointFilepath = pathLogging + '/checkpoints/' +'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5'
 	checkpointCallback = ModelCheckpoint(
 		checkpointFilepath,
@@ -204,7 +148,7 @@ if __name__ == '__main__':
 		period = logPeriod
 		)
 
-	#logger
+	#logger callback - Writes the current training state to file to load
 	loggerFilepath = pathLogging + '/checkpoints/' +'iTracker-log-{epoch:02d}-{val_loss:.2f}.json'
 	loggerCallback = Logger(
 		loggerFilepath,
@@ -220,124 +164,41 @@ if __name__ == '__main__':
 		write_graph = True, 
 		write_images = True)
 
+	# lrScheduler
+	# Function for the Learning Rate Scheduler to output the LR based on the provided input
+	#  If dictionary contains entry for current epoch, function returns associated learning rate from dict
+	# Else, will return current learning rate
+	# Arguments:
+	# epoch - The current epoch number, 0-indexed
+	# learningRate - Current learning Rate
+	# Returns learning rate as floating point number
+	def lrScheduler(epoch, learningRate):
+		if(str(epoch) in lrSchedule): #Update learning rate
+			print("Setting learning rate: Epoch #" + str(epoch) + ', Learning Rate = ' + str(lrSchedule[str(epoch)]))
+			return lrSchedule[str(epoch)]
+		return learningRate #No need to update learning rate, return current learning rate
+
 	#Learning Rate Scheduler
 	learningRateScheduler = LearningRateScheduler(lrScheduler)
+	
 	#Adding all callbacks to list to pass to fit generator
 	callbacks = [checkpointCallback, tensorboard, learningRateScheduler, loggerCallback]
 
-	#Training model from scratch:
-	if(not loadModel): #Build and compile ML model
-		print("Initializing Model")
-		#Defining input here
-		leftEyeInput = Input(shape=(224,224,3,))
-		rightEyeInput = Input(shape=(224,224,3,))
-		faceInput = Input(shape=(224,224,3,))
-		faceGridInput = Input(shape=(625,))
-
-		#Define convolutional layers for left and right eye inputs
-		convE1 = createConvLayer(96, 11, 4)
-		maxPoolE1 = createMaxPool()
-		paddingE1 = createPadding(2)
-		convE2 = createConvLayer(256, 5, 1)
-		maxPoolE2 = createMaxPool()
-		paddingE2 = createPadding(1)
-		convE3 = createConvLayer(384, 3, 1)
-		convE4 = createConvLayer(64, 1, 1)
-
-		#Define convolutional layers for face input
-		convF1 = createConvLayer(96, 11, 4)
-		maxPoolF1 = createMaxPool()
-		paddingF1 = createPadding(2)
-		convF2 = createConvLayer(256, 5, 1)
-		maxPoolF2 = createMaxPool()
-		paddingF2 = createPadding(1)
-		convF3 = createConvLayer(384, 3, 1)
-		convF4 = createConvLayer(64, 1, 1)
-
-		#Define fully connected layer for left & right eye concatenation
-		fullyConnectedE1 = createFullyConnected(128)
-
-		#Define fully connected layers for face
-		fullyConnectedF1 = createFullyConnected(128)
-		fullyConnectedF2 = createFullyConnected(64)
-
-		#Define fully connected layers for face grid
-		fullyConnectedFG1 = createFullyConnected(256)
-		fullyConnectedFG2 = createFullyConnected(128)
-
-		#Define fully connected layers for eyes & face & face grid
-		fullyConnected1 = createFullyConnected(128)
-		fullyConnected2 = createFullyConnected(2, 'linear')
-
-
-		#Defining dataflow through layers
-		#Left Eye
-		leftDataConvE1 = convE1(leftEyeInput)
-		leftDataMaxPoolE1 = maxPoolE1(leftDataConvE1)
-		leftDataPaddingE1 = paddingE1(leftDataMaxPoolE1)
-		leftDataConvE2 = convE2(leftDataPaddingE1)
-		leftDataMaxPoolE2 = maxPoolE2(leftDataConvE2)
-		leftDataPaddingE2 = paddingE2(leftDataMaxPoolE2)
-		leftDataConvE3 = convE3(leftDataPaddingE2)
-		leftDataConvE4 = convE4(leftDataConvE3)
-		#Reshape data to feed into fully connected layer
-		leftEyeFinal = Reshape((9216,))(leftDataConvE4)
-
-		#Right Eye
-		rightDataConvE1 = convE1(rightEyeInput)
-		rightDataMaxPoolE1 = maxPoolE1(rightDataConvE1)
-		rightDataPaddingE1 = paddingE1(rightDataMaxPoolE1)
-		rightDataConvE2 = convE2(rightDataPaddingE1)
-		rightDataMaxPoolE2 = maxPoolE2(rightDataConvE2)
-		rightDataPaddingE2 = paddingE2(rightDataMaxPoolE2)
-		rightDataConvE3 = convE3(rightDataPaddingE2)
-		rightDataConvE4 = convE4(rightDataConvE3)
-		#Reshape data to feed into fully connected layer
-		rightEyeFinal = Reshape((9216,))(rightDataConvE4)
-
-		#Combining left & right eye
-		dataLRMerge = Concatenate(axis=1)([leftEyeFinal, rightEyeFinal])
-		dataFullyConnectedE1 = fullyConnectedE1(dataLRMerge)
-
-		#Face
-		dataConvF1 = convF1(faceInput)
-		dataMaxPoolF1 = maxPoolF1(dataConvF1)
-		dataPaddingF1 = paddingF1(dataMaxPoolF1)
-		dataConvF2 = convF2(dataPaddingF1)
-		dataMaxPoolF2 = maxPoolF2(dataConvF2)
-		dataPaddingF2 = paddingF2(dataMaxPoolF2)
-		dataConvF3 = convF3(dataPaddingF2)
-		dataConvF4 = convF4(dataConvF3)
-		#Reshape data to feed into fully connected layer
-		faceFinal = Reshape((9216,))(dataConvF4)
-		dataFullyConnectedF1 = fullyConnectedF1(faceFinal)
-		dataFullyConnectedF2 = fullyConnectedF2(dataFullyConnectedF1)
-
-
-		#Face grid
-		dataFullyConnectedFG1 = fullyConnectedFG1(faceGridInput)
-		dataFullyConnectedFG2 = fullyConnectedFG2(dataFullyConnectedFG1)
-
-		#Combining Eyes & Face & Face Grid
-		finalMerge = Concatenate(axis=1)([dataFullyConnectedE1, dataFullyConnectedF2, dataFullyConnectedFG2])
-		dataFullyConnected1 = fullyConnected1(finalMerge)
-		finalOutput = fullyConnected2(dataFullyConnected1)
+	##################################### IMPORT MODEL ####################################
+	if(not loadModel): #Build and compile ML model, training model from scratch
+		iTrackerModel = iTrackerModel.initializeModel() #Retrieve iTracker Model
 
 		#Set initial values
 		initialEpoch = 0
 
-		#Initializing the model
-		iTrackerModel = Model(inputs = [leftEyeInput, rightEyeInput, faceInput, faceGridInput], outputs = finalOutput)
-		#iTrackerModelMultiGPU = multi_gpu_model(iTrackerModel, gpus=8)
-
 		#Define Stochastic Gradient descent optimizer
 		def getSGDOptimizer():
 			return SGD(lr=lrSchedule['0'], momentum=momentum, decay=decay)
+
 		#Compile model
-		iTrackerModel.compile(getSGDOptimizer(), loss=['mean_squared_error'])
-
-
+		iTrackerModel.compile(getSGDOptimizer(), loss=['mse'])
 	else: #Loading model from file
+
 		#Set initial values
 		initialEpoch = previousTrainingState['epoch']
 		print("Loading model from file")
@@ -346,14 +207,10 @@ if __name__ == '__main__':
 		print("Learning Rate: " + str(previousTrainingState['learningRate']))
 		print("Training Loss:  " + str(previousTrainingState['trainLoss']))
 		print("Validation Loss:  " + str(previousTrainingState['validateLoss']))
+
 		iTrackerModel = load_model(modelPath)
 
-		iTrackerModel.load_weights(modelPath)
-
-
-
-
-	#Training model
+	#################################### TRAINING MODEL ###################################
 	print("")
 	print("Beginning Training...")
 	iTrackerModel.fit_generator(
@@ -366,17 +223,19 @@ if __name__ == '__main__':
 			workers = 4
 		)
 
-
 	#Evaluate model here
 	testLoss = iTrackerModel.evaluate_generator(
 		ppTest,
 		steps = math.ceil(len(ppTest))
 	)
 
+	print("Saving trained model to " + pathLogging + "/finalModel.h5")
 	iTrackerModel.save(pathLogging + "/finalModel.h5")
 
 	print()
 	print("FINISHED MODEL TRAINING AND EVALUATION")
 	print("Final test loss: " + str(testLoss))
-	pp.cleanup()
+	print('\nCleanup unpacked data? (y/n)')
+	if(yesNoPrompt()):
+		ppTrain.cleanup() #Call one on, but deletes temp dir, so deletes tenp data for all datasets
 

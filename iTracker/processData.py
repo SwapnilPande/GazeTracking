@@ -177,11 +177,8 @@ class DataPreProcessor(Sequence):
 	# Should be called at the time of destroying the Preprocessor object
 	# Deletes the temporary directory from the filesystem
 	def cleanup(self):
-		print('Cleanup unpacked data? (y/n)')
-		if(yesNoPrompt()):
-			print('Removing temp directory...')
-			shutil.rmtree(self.tempDataDir)
-		print("Exiting program")
+		print('Removing temp directory...')
+		shutil.rmtree(self.tempDataDir)
 
 	# indexData
 	# Builds an index of the data for a dataset and a dictionary containing the metadata
