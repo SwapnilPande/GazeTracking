@@ -234,8 +234,14 @@ if __name__ == '__main__':
 		print("Learning Rate: " + str(previousTrainingState['learningRate']))
 		print("Training Loss:  " + str(previousTrainingState['trainLoss']))
 		print("Validation Loss:  " + str(previousTrainingState['validateLoss']))
-
-		iTrackerModel = load_model(modelPath)
+		if(useMultiGPU):
+			with tf.device("/cpu:0"):
+				#This is the model to be saved
+				iTrackerModelSave = load_model(modelPath) #Retrieve iTracker Model
+			iTrackerModel = multi_gpu_model(iTrackerModelSave, numGPU) 
+			print("Using " + str(numGPU) + " GPUs")
+		else:
+			iTrackerModel = load_model(modelPath)
 
 	#################################### TRAINING MODEL ###################################
 	print("")
