@@ -89,11 +89,21 @@ if __name__ == '__main__':
 	trainSetProportion = hyperParamsJSON['trainSetProportion']
 	validateSetProportion = hyperParamsJSON['validateSetProportion']
 
+	#Load Data paths
 	pathToData = dataPathJSON['pathToData']
 	pathTemp = dataPathJSON['pathToTempDir']
 	pathLogging = dataPathJSON['pathLogging']
 
-	#Confirm ML Parameters
+	#Load machine parameters
+	machineParams = paramJSON['machineParameters']
+	numWorkers = machineParams['numberofWorkers'] #Number of workers to spawn in parallel
+	numGPU = machineParams['numberofGPUS'] #Number of GPUs to use
+	useMultiGPU = (numGPU > 1) #Set flag determining number of GPus to use
+
+
+
+	#Confirm ML hyperparameters
+	print("----------------------------")
 	print('Learning Rate: ' + str(learningRate))
 	print('Momentum: ' + str(momentum))
 	print('Decay: ' + str(decay))
@@ -111,9 +121,14 @@ if __name__ == '__main__':
 	print('Path to create temp directory: ' + pathTemp)
 	print('Path to store logs: ' + pathLogging)
 	print()
+	print('Number of workers: ' + str(numWorkers))
+	print('Number of GPUs:  ' + str(numGPU))
+	print("----------------------------")
 	print('Train with these parameters? (y/n)')
 	if(not yesNoPrompt()): #Delete directory
 		raise Exception('Incorrect training parameters. Modify ml_param.json')
+
+	#Load Machine parameters
 
 	processData.initializeData(pathToData, pathTemp, trainSetProportion, validateSetProportion)
 
@@ -186,7 +201,16 @@ if __name__ == '__main__':
 
 	##################################### IMPORT MODEL ####################################
 	if(not loadModel): #Build and compile ML model, training model from scratch
-		iTrackerModel = iTrackerModel.initializeModel() #Retrieve iTracker Model
+		if(useMultiGPU):
+			with tf.device("/cpu:0"):
+				#This is the model to be saved
+				iTrackerModelSave = iTrackerModel.initializeModel() #Retrieve iTracker Model
+			iTrackerModel = multi_gpu_model(iTrackerModelSave, numGPU) 
+			print("Using " + str(numGPU) + " GPUs")
+		else:
+			iTrackerModel = iTrackerModel.initializeModel() #Retrieve iTracker Model
+			print("Using 1 GPU")
+
 
 		#Set initial values
 		initialEpoch = 0
@@ -197,6 +221,7 @@ if __name__ == '__main__':
 
 		#Compile model
 		iTrackerModel.compile(getSGDOptimizer(), loss=['mse'])
+
 	else: #Loading model from file
 
 		#Set initial values
@@ -220,7 +245,7 @@ if __name__ == '__main__':
 			callbacks = callbacks,
 			initial_epoch = initialEpoch,
 			use_multiprocessing = True,
-			workers = 4
+			workers = numWorkers
 		)
 
 	#Evaluate model here
