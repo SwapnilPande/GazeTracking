@@ -171,9 +171,10 @@ class DataPreProcessor(Sequence):
 		random.shuffle(self.frameIndex)
 
 		#Initializing other variables
-		print("Just kidding... Loading all data into memory")
 		self.batchSize = batchSize
+		self.loadedData = False
 		if(loadAllData):
+			print("Just kidding... Loading all data into memory")
 			self.inputs = []
 			self.labels = []
 			pbar = createProgressBar(maxVal=self.__len__())
@@ -184,8 +185,6 @@ class DataPreProcessor(Sequence):
 				pbar.update()
 			self.loadedDataIndex = [x for x in range(0, self.numFrames)]
 			self.loadedData = True
-		else:
-			self.loadedData = False
 
 	# cleanup
 	# Should be called at the time of destroying the Preprocessor object
