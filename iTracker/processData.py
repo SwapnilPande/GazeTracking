@@ -155,7 +155,10 @@ class DataPreProcessor(Sequence):
 		#Build index of metadata for each frame of dataset
 		#Stores the paths to all valid frames
 		#Note: path is relative to working dir, not training data dir
-		print('Building index and collecting metadata for ' + dataset + ' dataset')
+		if(loadAllData):
+			print('Building index, collecting metadata, and loading images for ' + dataset + ' dataset')
+		else:
+			print('Building index and collecting metadata for ' + dataset + ' dataset')
 		if(loadAllData):
 			self.frameIndex, self.metadata, self.frames = self.indexData(self.tempDataDir, loadAllData)
 			self.loadedData = True

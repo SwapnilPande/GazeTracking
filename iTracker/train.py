@@ -99,7 +99,10 @@ if __name__ == '__main__':
 	#Load machine parameters
 	machineParams = paramJSON['machineParameters']
 	numWorkers = machineParams['numberofWorkers'] #Number of workers to spawn in parallel
+	queueSize = machineParams['queueSize'] #Max size of queue of images
 	numGPU = machineParams['numberofGPUS'] #Number of GPUs to use
+	loadTrainInMemory = machineParams['loadTrainIntoMemory'] #Whether or not to load training data in memory
+	loadValidateInMemory = machineParams['loadValidateIntoMemory'] #Whether or not to load validate data in memory
 	useMultiGPU = (numGPU > 1) #Set flag determining number of GPus to use
 
 
@@ -124,6 +127,7 @@ if __name__ == '__main__':
 	print('Path to store logs: ' + pathLogging)
 	print()
 	print('Number of workers: ' + str(numWorkers))
+	print('Queue Size: ' + str(queueSize))
 	print('Number of GPUs:  ' + str(numGPU))
 	print("----------------------------")
 	print('Train with these parameters? (y/n)')
@@ -246,8 +250,8 @@ if __name__ == '__main__':
 			validation_data = ppValidate, 
 			callbacks = callbacks,
 			initial_epoch = initialEpoch,
-			use_multiprocessing = False,
-			workers = numWorkers
+			workers = numWorkers,
+			max_queue_size = queueSize
 		)
 
 	#Evaluate model here

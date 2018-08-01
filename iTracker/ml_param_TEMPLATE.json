@@ -29,7 +29,10 @@
 	},
 	"machineParameters" :
 	{
+		"loadTrainIntoMemory" : ,
+		"loadValidateIntoMemory" : ,
 		"numberofWorkers" : ,
+		"queueSize" : ,
 		"numberofGPUS" : 
 	}
 }
