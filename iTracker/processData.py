@@ -11,7 +11,7 @@ from keras.utils import Sequence
 from keras.utils.training_utils import multi_gpu_model
 
 
-def initializeData(pathToData, pathTemp, trainProportion, validateProportion):
+def initializeData(pathToData, pathTemp, trainProportion, validateProportion, args):
 	#Calculating test data prooportion based on size of data
 	testProportion = 1 - trainProportion - validateProportion
 
@@ -74,9 +74,9 @@ def initializeData(pathToData, pathTemp, trainProportion, validateProportion):
 		print()
 		print('Remove data and unpack fresh data? (y/n)')
 		deleteData = False #Flag to store whether user wants to delete data
-		if(yesNoPrompt()): #Prompt user for input
+		if(yesNoPrompt(args.default, 'n')): #Prompt user for input
 			print("Are you sure? THIS WILL DELETE ALL UNPACKED DATA (y/n)") #Confirm that user actually wants to delete existing data
-			if(yesNoPrompt()):
+			if(yesNoPrompt(args.default, 'n')):
 				deleteData = True
 		if(deleteData):
 			shutil.rmtree(tempDataDir)
@@ -86,7 +86,7 @@ def initializeData(pathToData, pathTemp, trainProportion, validateProportion):
 			os.mkdir(testDir)
 		else:
 			print('Use Existing data? (y/n)')
-			if(yesNoPrompt()): #Using existing data, no need to unpack new data
+			if(yesNoPrompt(args.default, 'y')): #Using existing data, no need to unpack new data
 				useExistingData = True
 				print("Using existing data. Ignoring train and validate proportions provided and using existing distribution.")
 			else: #Cannot unpack or use existing, exit program
@@ -140,7 +140,9 @@ class DataPreProcessor(Sequence):
 	# 			each dictionary contains 5 keys: face, leftEye, rightEye, faceGrid, and label
 	#			each of these keys refers to a dictionary containing the necessary metadata to describe feature
 	# sampledFrames - stores sets that described the data that has already been sampled in the current epoch
-	def __init__(self, pathToData, pathTemp, batchSize, dataset, debug = False, loadAllData = False):
+	def __init__(self, pathToData, pathTemp, batchSize, dataset, args, debug = False, loadAllData = False):
+		self.args = args #Stores all command line arguments
+
 		self.loadedData = False
 
 		self.debug = debug

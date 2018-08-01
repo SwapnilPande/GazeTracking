@@ -33,6 +33,14 @@ if __name__ == '__main__':
 	import processData 	#Custom datset processor
 	import iTrackerModel #Machine learning model import
 
+	import argparse #Argument parsing
+
+	#Retrieve command line options
+	parser = argparse.ArgumentParser()
+	parser.add_argument("-d", "--default", help="Use default options when configuring execution", action='store_true')
+	args = parser.parse_args()
+
+
 
 	############################ LOAD DATA AND HYPERPARAMETERS ############################
 	lrSchedule = {} #Dict containing epoch as key, and learning rate as value
@@ -131,24 +139,24 @@ if __name__ == '__main__':
 	print('Number of GPUs:  ' + str(numGPU))
 	print("----------------------------")
 	print('Train with these parameters? (y/n)')
-	if(not yesNoPrompt()): #Delete directory
+	if(not yesNoPrompt(args.default, 'y')): #Delete directory
 		raise Exception('Incorrect training parameters. Modify ml_param.json')
 
 	#Load Machine parameters
 
-	processData.initializeData(pathToData, pathTemp, trainSetProportion, validateSetProportion)
+	processData.initializeData(pathToData, pathTemp, trainSetProportion, validateSetProportion, args)
 
 
 	#Initialize Data pre-processor here
-	ppTrain = processData.DataPreProcessor(pathToData, pathTemp, trainBatchSize, 'train', loadAllData = loadTrainInMemory)
-	ppValidate = processData.DataPreProcessor(pathToData, pathTemp, validateBatchSize, 'validate', loadAllData = loadValidateInMemory)
-	ppTest =  processData.DataPreProcessor(pathToData, pathTemp, testBatchSize, 'test')
+	ppTrain = processData.DataPreProcessor(pathToData, pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
+	ppValidate = processData.DataPreProcessor(pathToData, pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
+	ppTest =  processData.DataPreProcessor(pathToData, pathTemp, testBatchSize, 'test', args)
 	#Initialize Logging Dir here
 	if(os.path.isfile(pathLogging + "/finalModel.h5") or
 		(os.path.isdir(pathLogging + '/checkpoints'))):
 		print("Logging directory is non-empty and contains the final model or checkpoints from a previous execution.")
 		print("Remove data? (y/n)")
-		if(yesNoPrompt()): #Empty logging directory
+		if(yesNoPrompt(args.default, 'y')): #Empty logging directory
 			shutil.rmtree(pathLogging)
 			os.mkdir(pathLogging)
 		else:
@@ -275,6 +283,6 @@ if __name__ == '__main__':
 	print("FINISHED MODEL TRAINING AND EVALUATION")
 	print("Final test loss: " + str(testLoss))
 	print('\nCleanup unpacked data? (y/n)')
-	if(yesNoPrompt()):
+	if(yesNoPrompt(args.default, 'n')):
 		ppTrain.cleanup() #Call one on, but deletes temp dir, so deletes tenp data for all datasets
 

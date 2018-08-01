@@ -5,8 +5,12 @@ from progressbar import ProgressBar
 
 # yesNoPrompt
 # Accepts a yes or no (y/n) input from the user and returns a boolean with result
-def yesNoPrompt():
-	response = input()
+def yesNoPrompt(useDefault, default):
+	if(useDefault):
+		response = default
+		print(default)
+	else:
+		response = input()
 	while(response.lower() != 'y' and response.lower() != 'n'):
 		print("Enter only y or n:")
 		response = input()

@@ -11,6 +11,7 @@ keras = "*"
 opencv-python = "*"
 "progressbar2" = "*"
 tensorboard = "*"
+argparse = "*"
 
 [requires]
 python_version = "3.6"
