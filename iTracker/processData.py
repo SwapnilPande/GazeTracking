@@ -10,8 +10,6 @@ from uiUtils import yesNoPrompt, createProgressBar
 from keras.utils import Sequence
 from keras.utils.training_utils import multi_gpu_model
 
-#Used to display progress bars for file init
-
 
 def initializeData(pathToData, pathTemp, trainProportion, validateProportion):
 	#Calculating test data prooportion based on size of data
@@ -142,7 +140,7 @@ class DataPreProcessor(Sequence):
 	# 			each dictionary contains 5 keys: face, leftEye, rightEye, faceGrid, and label
 	#			each of these keys refers to a dictionary containing the necessary metadata to describe feature
 	# sampledFrames - stores sets that described the data that has already been sampled in the current epoch
-	def __init__(self, pathToData, pathTemp, batchSize, dataset, debug = False, loadAllData = True):
+	def __init__(self, pathToData, pathTemp, batchSize, dataset, debug = False, loadAllData = False):
 		self.loadedData = False
 
 		self.debug = debug
@@ -243,7 +241,8 @@ class DataPreProcessor(Sequence):
 						frameIndex.append(framePath)
 					else:
 						frameIndex.append(frameNum)
-						frames.append(self.getImage(framePath))
+						with open(framePath, 'rb') as f:
+							frames.append(np.fromstring(f.read(), dtype=np.uint8))
 					frameNum += 1
 					#Build the dictionary containing the metadata for a frame
 					metadata[framePath] = {
@@ -329,7 +328,7 @@ class DataPreProcessor(Sequence):
 	# Returns numpy array containing the image
 	def getImage(self, imagePath):
 		if(self.loadedData):
-			return self.images[imagePath]
+			return cv2.imdecode(self.frames[imagePath], -1)
 		else:
 			return 	cv2.imread(imagePath)
 
