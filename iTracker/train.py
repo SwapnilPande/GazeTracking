@@ -153,54 +153,6 @@ if __name__ == '__main__':
 		os.mkdir(pathLogging + '/tensorboard')
 	print("")
 
-
-	################################### DEFINE CALLBACKS ##################################
-	logPeriod = 1 #Frequency at which to log data
-
-	#Model Checkpoint callback
-	checkpointFilepath = pathLogging + '/checkpoints/' +'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5'
-	checkpointCallback = ModelCheckpoint(
-		checkpointFilepath,
-		monitor = 'val_loss',
-		period = logPeriod
-		)
-
-	#logger callback - Writes the current training state to file to load
-	loggerFilepath = pathLogging + '/checkpoints/' +'iTracker-log-{epoch:02d}-{val_loss:.2f}.json'
-	loggerCallback = Logger(
-		loggerFilepath,
-		hyperParamsJSON,
-		period = logPeriod
-		)
-
-	#Tensorboard
-	tensorboardFilepath = pathLogging + '/tensorboard'
-	tensorboard = TensorBoard(
-		log_dir = tensorboardFilepath + '/{}'.format(time()), 
-		histogram_freq = 0, 
-		write_graph = True, 
-		write_images = True)
-
-	# lrScheduler
-	# Function for the Learning Rate Scheduler to output the LR based on the provided input
-	#  If dictionary contains entry for current epoch, function returns associated learning rate from dict
-	# Else, will return current learning rate
-	# Arguments:
-	# epoch - The current epoch number, 0-indexed
-	# learningRate - Current learning Rate
-	# Returns learning rate as floating point number
-	def lrScheduler(epoch, learningRate):
-		if(str(epoch) in lrSchedule): #Update learning rate
-			print("Setting learning rate: Epoch #" + str(epoch) + ', Learning Rate = ' + str(lrSchedule[str(epoch)]))
-			return lrSchedule[str(epoch)]
-		return learningRate #No need to update learning rate, return current learning rate
-
-	#Learning Rate Scheduler
-	learningRateScheduler = LearningRateScheduler(lrScheduler)
-	
-	#Adding all callbacks to list to pass to fit generator
-	callbacks = [checkpointCallback, tensorboard, learningRateScheduler, loggerCallback]
-
 	##################################### IMPORT MODEL ####################################
 	#Define Stochastic Gradient descent optimizer
 	def getSGDOptimizer():
@@ -235,18 +187,61 @@ if __name__ == '__main__':
 		if(useMultiGPU):
 			with tf.device("/cpu:0"):
 				#This is the model to be saved
-				iTrackerModelSave = load_model(modelPath) #Retrieve iTracker Model
-			iTrackerModel = multi_gpu_model(iTrackerModelSave, numGPU) 
+				iTrackerModel = load_model(modelPath) #Retrieve iTracker Model
+			iTrackerModelMultiGPU = multi_gpu_model(iTrackerModelSave, numGPU) 
 			#Compile model
 			iTrackerModel.compile(getSGDOptimizer(), loss=['mse'])
 			print("Using " + str(numGPU) + " GPUs")
 		else:
 			iTrackerModel = load_model(modelPath)
+	#Define functions to retrieve the correct model depending on mutli gpu or not
+	def trainModel(): return iTrackerModelMultiGPU if useMultiGPU else iTrackerModel
+	def saveModel(): return iTrackerModel  
+	################################### DEFINE CALLBACKS ##################################
+	logPeriod = 1 #Frequency at which to log data
+
+	#logger callback - Writes the current training state to file to load
+	loggerFilepath = pathLogging + '/checkpoints/'
+	loggerCallback = Logger(
+		saveModel(),
+		loggerFilepath,
+		hyperParamsJSON,
+		period = logPeriod,
+		)
+
+	#Tensorboard
+	tensorboardFilepath = pathLogging + '/tensorboard'
+	tensorboard = TensorBoard(
+		log_dir = tensorboardFilepath + '/{}'.format(time()), 
+		histogram_freq = 0, 
+		write_graph = True, 
+		write_images = True)
+
+	# lrScheduler
+	# Function for the Learning Rate Scheduler to output the LR based on the provided input
+	#  If dictionary contains entry for current epoch, function returns associated learning rate from dict
+	# Else, will return current learning rate
+	# Arguments:
+	# epoch - The current epoch number, 0-indexed
+	# learningRate - Current learning Rate
+	# Returns learning rate as floating point number
+	def lrScheduler(epoch, learningRate):
+		if(str(epoch) in lrSchedule): #Update learning rate
+			print("Setting learning rate: Epoch #" + str(epoch) + ', Learning Rate = ' + str(lrSchedule[str(epoch)]))
+			return lrSchedule[str(epoch)]
+		return learningRate #No need to update learning rate, return current learning rate
+
+	#Learning Rate Scheduler
+	learningRateScheduler = LearningRateScheduler(lrScheduler)
+	
+	#Adding all callbacks to list to pass to fit generator
+	callbacks = [tensorboard, learningRateScheduler, loggerCallback]
+
 
 	#################################### TRAINING MODEL ###################################
 	print("")
 	print("Beginning Training...")
-	iTrackerModel.fit_generator(
+	trainModel().fit_generator(
 			ppTrain, 
 			epochs = numEpochs, 
 			validation_data = ppValidate, 
@@ -263,7 +258,7 @@ if __name__ == '__main__':
 	)
 
 	print("Saving trained model to " + pathLogging + "/finalModel.h5")
-	iTrackerModel.save(pathLogging + "/finalModel.h5")
+	saveModel().save(pathLogging + "/finalModel.h5")
 
 	print()
 	print("FINISHED MODEL TRAINING AND EVALUATION")
