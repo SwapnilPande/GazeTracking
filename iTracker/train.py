@@ -161,8 +161,8 @@ if __name__ == '__main__':
 		if(useMultiGPU):
 			with tf.device("/cpu:0"):
 				#This is the model to be saved
-				iTrackerModel = iTrackerModel.initializeModel() #Retrieve iTracker Model
-			iTrackerModelMultiGPU = multi_gpu_model(iTrackerModel, numGPU) 
+				iTrackerModelOriginal = iTrackerModel.initializeModel() #Retrieve iTracker Model
+			iTrackerModel = multi_gpu_model(iTrackerModelOriginal, numGPU) 
 			print("Using " + str(numGPU) + " GPUs")
 		else:
 			iTrackerModel = iTrackerModel.initializeModel() #Retrieve iTracker Model
@@ -187,16 +187,16 @@ if __name__ == '__main__':
 		if(useMultiGPU):
 			with tf.device("/cpu:0"):
 				#This is the model to be saved
-				iTrackerModel = load_model(modelPath) #Retrieve iTracker Model
-			iTrackerModelMultiGPU = multi_gpu_model(iTrackerModel, numGPU) 
+				iTrackerModelOriginal = load_model(modelPath) #Retrieve iTracker Model
+			iTrackerModel = multi_gpu_model(iTrackerModelOriginal, numGPU) 
 			#Compile model
 			iTrackerModel.compile(getSGDOptimizer(), loss=['mse'])
 			print("Using " + str(numGPU) + " GPUs")
 		else:
 			iTrackerModel = load_model(modelPath)
 	#Define functions to retrieve the correct model depending on mutli gpu or not
-	def trainModel(): return iTrackerModelMultiGPU if useMultiGPU else iTrackerModel
-	def saveModel(): return iTrackerModel  
+	def trainModel(): return iTrackerModel 
+	def saveModel(): return iTrackerModelOriginal if useMultiGPU else iTrackerModel
 	################################### DEFINE CALLBACKS ##################################
 	logPeriod = 1 #Frequency at which to log data
 
