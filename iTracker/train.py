@@ -140,8 +140,8 @@ if __name__ == '__main__':
 
 
 	#Initialize Data pre-processor here
-	ppTrain = processData.DataPreProcessor(pathToData, pathTemp, trainBatchSize, 'train', loadAllData = True)
-	ppValidate = processData.DataPreProcessor(pathToData, pathTemp, validateBatchSize, 'validate')
+	ppTrain = processData.DataPreProcessor(pathToData, pathTemp, trainBatchSize, 'train', loadAllData = loadTrainInMemory)
+	ppValidate = processData.DataPreProcessor(pathToData, pathTemp, validateBatchSize, 'validate', loadAllData = loadValidateInMemory)
 	ppTest =  processData.DataPreProcessor(pathToData, pathTemp, testBatchSize, 'test')
 	#Initialize Logging Dir here
 	if(os.path.isfile(pathLogging + "/finalModel.h5") or
