@@ -204,13 +204,20 @@ if __name__ == '__main__':
 	################################### DEFINE CALLBACKS ##################################
 	logPeriod = 1 #Frequency at which to log data
 
+	#Model Checkpoint callback
+	checkpointFilepath = pathLogging + '/checkpoints/' +'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5'
+	checkpointCallback = ModelCheckpoint(
+		checkpointFilepath,
+		monitor = 'val_loss',
+		period = logPeriod
+		)
+
 	#logger callback - Writes the current training state to file to load
-	loggerFilepath = pathLogging + '/checkpoints/'
+	loggerFilepath = pathLogging + '/checkpoints/' +'iTracker-log-{epoch:02d}-{val_loss:.2f}.json'
 	loggerCallback = Logger(
-		saveModel(),
 		loggerFilepath,
 		hyperParamsJSON,
-		period = logPeriod,
+		period = logPeriod
 		)
 
 	#Tensorboard
@@ -239,7 +246,7 @@ if __name__ == '__main__':
 	learningRateScheduler = LearningRateScheduler(lrScheduler)
 	
 	#Adding all callbacks to list to pass to fit generator
-	callbacks = [tensorboard, learningRateScheduler, loggerCallback]
+	callbacks = [checkpointCallback, tensorboard, learningRateScheduler, loggerCallback]
 
 
 	#################################### TRAINING MODEL ###################################
