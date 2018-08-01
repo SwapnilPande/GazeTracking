@@ -157,24 +157,60 @@ if __name__ == '__main__':
 		os.mkdir(pathLogging + '/tensorboard')
 	print("")
 
+	##################################### IMPORT MODEL ####################################
+	#Define Stochastic Gradient descent optimizer
+	def getSGDOptimizer():
+		return SGD(lr=lrSchedule['0'], momentum=momentum, decay=decay)
+	if(not loadModel): #Build and compile ML model, training model from scratch
+		if(useMultiGPU):
+			with tf.device("/cpu:0"):
+				#This is the model to be saved
+				iTrackerModelOriginal = iTrackerModel.initializeModel() #Retrieve iTracker Model
+			iTrackerModel = multi_gpu_model(iTrackerModelOriginal, numGPU) 
+			print("Using " + str(numGPU) + " GPUs")
+		else:
+			iTrackerModel = iTrackerModel.initializeModel() #Retrieve iTracker Model
+			print("Using 1 GPU")
 
+
+		#Set initial values
+		initialEpoch = 0
+		#Compile model
+		iTrackerModel.compile(getSGDOptimizer(), loss=['mse'])
+
+	else: #Loading model from file
+
+		#Set initial values
+		initialEpoch = previousTrainingState['epoch']
+		print("Loading model from file")
+		print("Previous training ended at: ")
+		print("Epoch: " + str(previousTrainingState['epoch']))
+		print("Learning Rate: " + str(previousTrainingState['learningRate']))
+		print("Training Loss:  " + str(previousTrainingState['trainLoss']))
+		print("Validation Loss:  " + str(previousTrainingState['validateLoss']))
+		if(useMultiGPU):
+			with tf.device("/cpu:0"):
+				#This is the model to be saved
+				iTrackerModelOriginal = load_model(modelPath) #Retrieve iTracker Model
+			iTrackerModel = multi_gpu_model(iTrackerModelOriginal, numGPU) 
+			#Compile model
+			iTrackerModel.compile(getSGDOptimizer(), loss=['mse'])
+			print("Using " + str(numGPU) + " GPUs")
+		else:
+			iTrackerModel = load_model(modelPath)
+	#Define functions to retrieve the correct model depending on mutli gpu or not
+	def trainModel(): return iTrackerModel 
+	def saveModel(): return iTrackerModelOriginal if useMultiGPU else iTrackerModel
 	################################### DEFINE CALLBACKS ##################################
 	logPeriod = 1 #Frequency at which to log data
 
-	#Model Checkpoint callback
-	checkpointFilepath = pathLogging + '/checkpoints/' +'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5'
-	checkpointCallback = ModelCheckpoint(
-		checkpointFilepath,
-		monitor = 'val_loss',
-		period = logPeriod
-		)
-
 	#logger callback - Writes the current training state to file to load
-	loggerFilepath = pathLogging + '/checkpoints/' +'iTracker-log-{epoch:02d}-{val_loss:.2f}.json'
+	loggerFilepath = pathLogging + '/checkpoints/'
 	loggerCallback = Logger(
+		saveModel(),
 		loggerFilepath,
 		hyperParamsJSON,
-		period = logPeriod
+		period = logPeriod,
 		)
 
 	#Tensorboard
@@ -203,48 +239,13 @@ if __name__ == '__main__':
 	learningRateScheduler = LearningRateScheduler(lrScheduler)
 	
 	#Adding all callbacks to list to pass to fit generator
-	callbacks = [checkpointCallback, tensorboard, learningRateScheduler, loggerCallback]
+	callbacks = [tensorboard, learningRateScheduler, loggerCallback]
 
-	##################################### IMPORT MODEL ####################################
-	if(not loadModel): #Build and compile ML model, training model from scratch
-		if(useMultiGPU):
-			with tf.device("/cpu:0"):
-				#This is the model to be saved
-				iTrackerModelSave = iTrackerModel.initializeModel() #Retrieve iTracker Model
-			iTrackerModel = multi_gpu_model(iTrackerModelSave, numGPU) 
-			print("Using " + str(numGPU) + " GPUs")
-		else:
-			iTrackerModel = iTrackerModel.initializeModel() #Retrieve iTracker Model
-			print("Using 1 GPU")
-
-
-		#Set initial values
-		initialEpoch = 0
-
-		#Define Stochastic Gradient descent optimizer
-		def getSGDOptimizer():
-			return SGD(lr=lrSchedule['0'], momentum=momentum, decay=decay)
-
-		#Compile model
-		iTrackerModel.compile(getSGDOptimizer(), loss=['mse'])
-
-	else: #Loading model from file
-
-		#Set initial values
-		initialEpoch = previousTrainingState['epoch']
-		print("Loading model from file")
-		print("Previous training ended at: ")
-		print("Epoch: " + str(previousTrainingState['epoch']))
-		print("Learning Rate: " + str(previousTrainingState['learningRate']))
-		print("Training Loss:  " + str(previousTrainingState['trainLoss']))
-		print("Validation Loss:  " + str(previousTrainingState['validateLoss']))
-
-		iTrackerModel = load_model(modelPath)
 
 	#################################### TRAINING MODEL ###################################
 	print("")
 	print("Beginning Training...")
-	iTrackerModel.fit_generator(
+	trainModel().fit_generator(
 			ppTrain, 
 			epochs = numEpochs, 
 			validation_data = ppValidate, 
@@ -261,7 +262,7 @@ if __name__ == '__main__':
 	)
 
 	print("Saving trained model to " + pathLogging + "/finalModel.h5")
-	iTrackerModel.save(pathLogging + "/finalModel.h5")
+	saveModel().save(pathLogging + "/finalModel.h5")
 
 	print()
 	print("FINISHED MODEL TRAINING AND EVALUATION")
