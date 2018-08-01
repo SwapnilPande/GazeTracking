@@ -4,11 +4,9 @@ import json
 
 class Logger(Callback):
 
-	def __init__(self, model, filepath,  hyperparams, period=1):
+	def __init__(self, filepath,  hyperparams, period=1):
 		super(Logger, self).__init__() 
-		self.model = model # Store model to store
-		self.logFilepath = filepath + 'iTracker-log-{epoch:02d}-{val_loss:.2f}.json' #Generate filepath for logging
-		self.checkpointFilepath = filepath + 'iTracker-checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5' #Generate filepath for checkpoint
+		self.filepath = filepath #Save filepath for logging
 		self.period = period #Logging period
 		self.epochs_since_last_save = 0
 		self.hyperparams = hyperparams 
@@ -36,12 +34,7 @@ class Logger(Callback):
             	'trainingHyperparameters' : self.hyperparams
 			}
 			#Populate variables in log filepath
-			logFilepath = self.logFilepath.format(epoch=epoch + 1, **logs) 
-			with open(logFilepath, 'w') as f: 
+			filepath = self.filepath.format(epoch=epoch + 1, **logs) 
+			with open(filepath, 'w') as f: 
 				json.dump(outputDict, f) #Write to file
-
-			#### Generate checkpoint ####
-			#Populate variables in checkpoint filepath
-			checkpointFilepath = self.checkpointFilepath.format(epoch=epoch+1, **logs)
-			self.model.save(checkpointFilepath) #Save Model
  
