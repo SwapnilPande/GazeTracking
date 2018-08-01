@@ -239,19 +239,27 @@ class DataPreProcessor(Sequence):
 					#Write file path to index
 					if(not loadAllData):
 						frameIndex.append(framePath)
+						metadata[framePath] = {
+							'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
+							'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
+							'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
+							'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
+							'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
+						}
 					else:
 						frameIndex.append(frameNum)
 						with open(framePath, 'rb') as f:
 							frames.append(np.fromstring(f.read(), dtype=np.uint8))
-					frameNum += 1
+						metadata[frameNum] = {
+							'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
+							'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
+							'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
+							'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
+							'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
+						}
 					#Build the dictionary containing the metadata for a frame
-					metadata[framePath] = {
-						'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
-						'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
-						'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
-						'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
-						'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
-					}
+					
+					frameNum += 1
 		if(loadAllData):
 			return frameIndex, metadata, frames
 		else:
@@ -521,32 +529,29 @@ class DataPreProcessor(Sequence):
 	# 	Metadata describes the subject and frame number for each image 
 	def __getitem__(self, index):
 		startIndex = index*self.batchSize
-		if(not self.loadedData):
-			try: #Full size batch
-				framesToRetrieve = self.frameIndex[startIndex : startIndex + self.batchSize]
-			except IndexError: #Retrieve small batch at the end of the array
-				framesToRetrieve = self.frameIndex[startIndex:]
+		try: #Full size batch
+			framesToRetrieve = self.frameIndex[startIndex : startIndex + self.batchSize]
+		except IndexError: #Retrieve small batch at the end of the array
+			framesToRetrieve = self.frameIndex[startIndex:]
 
-			faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve)
-			faceGridBatch = self.getFaceGrids(framesToRetrieve)
-			labelsBatch = self.getLabels(framesToRetrieve)
-			if(not self.debug):
-				return {
-							'input_3' : faceBatch, 
-							'input_1' : leftEyeBatch, 
-							'input_2' : rightEyeBatch, 
-							'input_4' : faceGridBatch
-						}, labelsBatch#, metaBatch
-			else:
-				metaBatch = np.array(framesToRetrieve)
-				return {
-							'input_3' : faceBatch, 
-							'input_1' : leftEyeBatch, 
-							'input_2' : rightEyeBatch, 
-							'input_4' : faceGridBatch
-						}, labelsBatch, metaBatch
+		faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve)
+		faceGridBatch = self.getFaceGrids(framesToRetrieve)
+		labelsBatch = self.getLabels(framesToRetrieve)
+		if(not self.debug):
+			return {
+						'input_3' : faceBatch, 
+						'input_1' : leftEyeBatch, 
+						'input_2' : rightEyeBatch, 
+						'input_4' : faceGridBatch
+					}, labelsBatch#, metaBatch
 		else:
-			return self.inputs[self.loadedDataIndex[i]],self.labels[self.loadedDataIndex[i]],
+			metaBatch = np.array(framesToRetrieve)
+			return {
+						'input_3' : faceBatch, 
+						'input_1' : leftEyeBatch, 
+						'input_2' : rightEyeBatch, 
+						'input_4' : faceGridBatch
+					}, labelsBatch, metaBatch
 
 
 
