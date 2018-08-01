@@ -161,8 +161,8 @@ if __name__ == '__main__':
 		if(useMultiGPU):
 			with tf.device("/cpu:0"):
 				#This is the model to be saved
-				iTrackerModelSave = iTrackerModel.initializeModel() #Retrieve iTracker Model
-			iTrackerModel = multi_gpu_model(iTrackerModelSave, numGPU) 
+				iTrackerModel = iTrackerModel.initializeModel() #Retrieve iTracker Model
+			iTrackerModelMultiGPU = multi_gpu_model(iTrackerModel, numGPU) 
 			print("Using " + str(numGPU) + " GPUs")
 		else:
 			iTrackerModel = iTrackerModel.initializeModel() #Retrieve iTracker Model
@@ -188,7 +188,7 @@ if __name__ == '__main__':
 			with tf.device("/cpu:0"):
 				#This is the model to be saved
 				iTrackerModel = load_model(modelPath) #Retrieve iTracker Model
-			iTrackerModelMultiGPU = multi_gpu_model(iTrackerModelSave, numGPU) 
+			iTrackerModelMultiGPU = multi_gpu_model(iTrackerModel, numGPU) 
 			#Compile model
 			iTrackerModel.compile(getSGDOptimizer(), loss=['mse'])
 			print("Using " + str(numGPU) + " GPUs")
@@ -249,7 +249,7 @@ if __name__ == '__main__':
 			initial_epoch = initialEpoch,
 			use_multiprocessing = False,
 			workers = numWorkers
-		)
+		) #Only use multiprocessing if we are not using multiple GPUs
 
 	#Evaluate model here
 	testLoss = iTrackerModel.evaluate_generator(
