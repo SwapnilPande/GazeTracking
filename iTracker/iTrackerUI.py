@@ -24,11 +24,16 @@ class iTrackerUI:
 		self.cursor = pygame.transform.scale(pygame.image.load("UI_assets/greatball.png"), self.cursorSize) 	
 
 		#Generating coordinates for dots on screen relative to screen size
-		self.x1 = int(self.wScreenPx*0.25 - self.dotSize[0]/2) 
-		self.x2 = int(self.wScreenPx*0.75 - self.dotSize[0]/2)
-		self.y1 = int(self.hScreenPx*0.25 - self.dotSize[1]/2)
-		self.y2 = int(self.hScreenPx*0.75 - self.dotSize[1]/2)
-		self.dotCoords = [(self.x1, self.y1), (self.x2, self.y1), (self.x1, self.y2), (self.x2, self.y2)]
+		# self.x1 = int(self.wScreenPx*0.25 - self.dotSize[0]/2) 
+		# self.x2 = int(self.wScreenPx*0.75 - self.dotSize[0]/2)
+		# self.y1 = int(self.hScreenPx*0.25 - self.dotSize[1]/2)
+		# self.y2 = int(self.hScreenPx*0.75 - self.dotSize[1]/2)
+
+		self.x1 = int(self.wScreenPx*0.5 - self.dotSize[0]/2) 
+		self.y1 = int(self.hScreenPx*0.5 - self.dotSize[1]/2)
+
+		#self.dotCoords = [(self.x1, self.y1), (self.x2, self.y1), (self.x1, self.y2), (self.x2, self.y2)]
+		self.dotCoords = [(self.x1, self.y1)]#, (self.x2, self.y1), (self.x1, self.y2), (self.x2, self.y2)]
 		
 		#Generating initial coordinates for the cursor
 		self.cursorX = int(self.wScreenPx*0.5 - self.cursorSize[0]/2) 
@@ -41,7 +46,7 @@ class iTrackerUI:
 		#Define camera and screen parameters
 		self.xCameraOffsetCm = 14.25 #Horizonatl displacement of camera relative to origin pixel in cm
 		self.yCameraOffsetCm = -0.75 #Vertical displacement of camera relative to origin pixel in centimeters
-		self.wScreenCm = 28.5 #Width of the screen in cm
+		self.wScreenCm = 28.875 #Width of the screen in cm
 		self.hScreenCm = 19.25 #Height of the screen in cm
 
 		#Conversaion factors to scale centimeters to screen pixels
@@ -58,14 +63,14 @@ class iTrackerUI:
 	# 	coods - tuple containing coordinates in centimeters relative to camera
 	# Returns tuple containing transformed coordinates relative to origin pixel (and graphics coordinate system)
 	def cm2Px(self, coords):
-		return (round(self.xCm2Px*(coords[0] + self.xCameraOffsetCm) - self.cursorSize[0]/2),
-				round(self.yCm2Px*(-1*coords[1] + self.yCameraOffsetCm) - self.cursorSize[1]/2))
+		return (round(self.x1 + self.xCm2Px*coords[0]),
+				round(self.y1 + -1*self.yCm2Px*coords[1]))
 
 	# updateCursor
 	# Redraws the UI with the updated cursor location
 	# updatedCursorCoords - tuple containing x and y coordinates of the cursor
 	# If no coordinates are passed, display is updated with previous cursor coordinates
-	def updateCursor(self, updatedCursorCoords = None):
+	def updateUI(self, updatedCursorCoords):
 		#Looks for exit event to close application
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT: sys.exit()
@@ -76,10 +81,9 @@ class iTrackerUI:
 		#Draw dots on screen
 		for dotCoord in self.dotCoords:
 			self.screen.blit(self.dot, dotCoord)
-			
+		
 		#Store updated cursor coordinates
-		if(updatedCursorCoords):
-			self.cursorCoords = self.cm2Px(updatedCursorCoords)
+		self.cursorCoords = self.cm2Px(updatedCursorCoords)
 		
 		#Draw cursor to screen
 		self.screen.blit(self.cursor, self.cursorCoords)
@@ -93,10 +97,10 @@ class iTrackerUI:
 		pygame.display.flip()
 
 
-ui = iTrackerUI();
-while 1:
-	for x,y in zip(range(1000, 3000), range(1000, 3000)):
-		ui.updateCursor((14.25, -20))
+# ui = iTrackerUI();
+# while 1:
+# 	for x,y in zip(range(1000, 3000), range(1000, 3000)):
+# 		ui.updateUI((-1, -1))
 
 
 
