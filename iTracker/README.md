@@ -76,6 +76,8 @@ pipenv shell
 to enter the shell of the virtual environment.
 to execute the model, run the following:
 ```
-python train.py
+python train.py [-h] [-d] execution_name
 ```
+`execution name` : Name to tag the execution, used for log files
+`-d` : Automatically pass default values for all prompts
 

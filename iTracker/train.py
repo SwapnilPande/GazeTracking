@@ -1,4 +1,14 @@
+
+
 if __name__ == '__main__':
+	import argparse #Argument parsing
+
+	#Retrieve command line options
+	parser = argparse.ArgumentParser()
+	parser.add_argument("execution_name", help="Name to identify the train execution - used to name the log files")
+	parser.add_argument("-d", "--default", help="Use default options when configuring execution", action='store_true')
+	args = parser.parse_args()
+	
 	#Run pre-train config
 	try:
 		import config
@@ -31,14 +41,6 @@ if __name__ == '__main__':
 	from customCallbacks import Logger #Logger callback for logging training progress
 	import processData 	#Custom datset processor
 	import iTrackerModel #Machine learning model import
-
-	import argparse #Argument parsing
-
-	#Retrieve command line options
-	parser = argparse.ArgumentParser()
-	parser.add_argument("execution_name", help="Name to identify the train execution - used to name the log files")
-	parser.add_argument("-d", "--default", help="Use default options when configuring execution", action='store_true')
-	args = parser.parse_args()
 
 
 
