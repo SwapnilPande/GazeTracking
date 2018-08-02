@@ -13,6 +13,7 @@ opencv-python = "*"
 tensorboard = "*"
 pygame = "*"
 socketio-client-nexus = "*"
+argparse = "*"
 
 [requires]
 python_version = "3.6"

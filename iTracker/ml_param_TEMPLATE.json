@@ -26,6 +26,13 @@
 		"pathToData" : "",
 		"pathToTempDir" : "",
 		"pathLogging" : ""
+	},
+	"machineParameters" :
+	{
+		"loadTrainIntoMemory" : ,
+		"loadValidateIntoMemory" : ,
+		"numberofWorkers" : ,
+		"queueSize" : ,
+		"numberofGPUS" : 
 	}
-
 }

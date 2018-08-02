@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "4c3ed9b37609f4f645e6342071acbdf17fe4b39d22f2085e9f8c55e330a71924"
+            "sha256": "a75105ed7b776701b3a49204f3fd1f54a877c623f75d12c1ebc46cd59a09630b"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -18,9 +18,17 @@
     "default": {
         "absl-py": {
             "hashes": [
-                "sha256:e0eb8358b549552b1cc5972350bc3e41dd0a926c15b3ff95ce60f3c78c80824c"
+                "sha256:fcb729e9a3cf1a8f88f6c3a6465859c42116f23e1feb6208825eb88f3fd2b880"
             ],
-            "version": "==0.2.2"
+            "version": "==0.3.0"
+        },
+        "argparse": {
+            "hashes": [
+                "sha256:62b089a55be1d8949cd2bc7e0df0bddb9e028faefc8c32038cc84862aefdd6e4",
+                "sha256:c31647edb69fd3d465a847ea3157d37bed1f95f19760b11a47aa91c04b666314"
+            ],
+            "index": "pypi",
+            "version": "==1.4.0"
         },
         "astor": {
             "hashes": [
@@ -128,25 +136,25 @@
         },
         "keras": {
             "hashes": [
-                "sha256:5b8499d157af217f1a5ee33589e774127ebc3e266c833c22cb5afbb0ed1734bf",
-                "sha256:fa71a1f576dbd643532b872b8952afb65cc3ff7ed20d172e6b49657b710b43d0"
+                "sha256:253cce021d73fa6d6e69e740bd985d6e2419dcb9fca96b2c8dbdd1736e3ec68d",
+                "sha256:468d98da104ec5c3dbb10c2ef6bb345ab154f6ca2d722d4c250ef4d6105de17a"
             ],
             "index": "pypi",
-            "version": "==2.2.0"
+            "version": "==2.2.2"
         },
         "keras-applications": {
             "hashes": [
-                "sha256:7dceb9820b39c01459ea5e8922add86eb99a9e14354c33dc9981d5f5077fa0ac",
-                "sha256:9924be748e5d180806d133c714d22895b997ed722757491dd99538851145d3bf"
+                "sha256:0ee155e0e07b8a614c92a72bba081264b69ecd91d74c742488054dc89e24b05e",
+                "sha256:8c95300328630ae74fb0828b6fa38269a25c0228a02f1e5181753bfd48961f49"
             ],
-            "version": "==1.0.2"
+            "version": "==1.0.4"
         },
         "keras-preprocessing": {
             "hashes": [
-                "sha256:5283236f0b22a57b30bda766fc819b2ed2483c52f3e1f8b39fcc528f51f772e7",
-                "sha256:8649ba6377ecc06ea10e0a8a954df5600d115b4b626861e33c79b41ec03c5194"
+                "sha256:f44ab7bac195ae77ace2ce082413de2d6794e89d09a71a822a6bafd2aa32276b",
+                "sha256:f5306554d2b454d825b36f35e327744f5477bd2ae21017f1a93b2097bed6757e"
             ],
-            "version": "==1.0.1"
+            "version": "==1.0.2"
         },
         "markdown": {
             "hashes": [

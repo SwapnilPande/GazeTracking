@@ -4,33 +4,37 @@ import json
 
 class Logger(Callback):
 
-	def __init__(self, filepath, hyperparams, period=1):
-		super(Logger, self).__init__()
-		self.filepath = filepath
-		self.period = period
+	def __init__(self, filepath,  hyperparams, period=1):
+		super(Logger, self).__init__() 
+		self.filepath = filepath #Save filepath for logging
+		self.period = period #Logging period
 		self.epochs_since_last_save = 0
-		self.hyperparams = hyperparams
+		self.hyperparams = hyperparams 
 
 
 	def on_epoch_end(self, epoch, logs=None):
-		logs = logs or {}
+		logs = logs or {} #Creating a dictionary object from logs, if empty, logs becomes an empty dict
 
 		self.epochs_since_last_save += 1
-		if self.epochs_since_last_save >= self.period:
+		if self.epochs_since_last_save >= self.period: #Need to log
 			self.epochs_since_last_save = 0
 			print("Generating checkpoint and logs")
+
+			#### Generating log file ####
+			#Current train state
 			trainState = {
-				"trainAccuracy" : logs['acc'],
             	"trainLoss" : logs['loss'],
-            	"validateAccuracy" : logs['val_acc'],
             	"validateLoss" : logs['val_loss'],
             	"epoch" : epoch,
             	"learningRate" : float(K.get_value(self.model.optimizer.lr))
 			}
+			#Adding hyperparameters to log file
 			outputDict = {
             	'trainState' : trainState,
             	'trainingHyperparameters' : self.hyperparams
 			}
-			filepath = self.filepath.format(epoch=epoch + 1, **logs)
-			with open(filepath, 'w') as f:
-				json.dump(outputDict, f)
+			#Populate variables in log filepath
+			filepath = self.filepath.format(epoch=epoch + 1, **logs) 
+			with open(filepath, 'w') as f: 
+				json.dump(outputDict, f) #Write to file
+ 

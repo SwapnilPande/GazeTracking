@@ -11,10 +11,8 @@ from keras.utils.training_utils import multi_gpu_model
 from uiUtils import yesNoPrompt, createProgressBar
 import imageUtils
 
-#Used to display progress bars for file init
 
-
-def initializeData(pathToData, pathTemp, trainProportion, validateProportion):
+def initializeData(pathToData, pathTemp, trainProportion, validateProportion, args):
 	#Calculating test data prooportion based on size of data
 	testProportion = 1 - trainProportion - validateProportion
 
@@ -77,9 +75,9 @@ def initializeData(pathToData, pathTemp, trainProportion, validateProportion):
 		print()
 		print('Remove data and unpack fresh data? (y/n)')
 		deleteData = False #Flag to store whether user wants to delete data
-		if(yesNoPrompt()): #Prompt user for input
+		if(yesNoPrompt(args.default, 'n')): #Prompt user for input
 			print("Are you sure? THIS WILL DELETE ALL UNPACKED DATA (y/n)") #Confirm that user actually wants to delete existing data
-			if(yesNoPrompt()):
+			if(yesNoPrompt(args.default, 'n')):
 				deleteData = True
 		if(deleteData):
 			shutil.rmtree(tempDataDir)
@@ -89,7 +87,7 @@ def initializeData(pathToData, pathTemp, trainProportion, validateProportion):
 			os.mkdir(testDir)
 		else:
 			print('Use Existing data? (y/n)')
-			if(yesNoPrompt()): #Using existing data, no need to unpack new data
+			if(yesNoPrompt(args.default, 'y')): #Using existing data, no need to unpack new data
 				useExistingData = True
 				print("Using existing data. Ignoring train and validate proportions provided and using existing distribution.")
 			else: #Cannot unpack or use existing, exit program
@@ -143,7 +141,11 @@ class DataPreProcessor(Sequence):
 	# 			each dictionary contains 5 keys: face, leftEye, rightEye, faceGrid, and label
 	#			each of these keys refers to a dictionary containing the necessary metadata to describe feature
 	# sampledFrames - stores sets that described the data that has already been sampled in the current epoch
-	def __init__(self, pathToData, pathTemp, batchSize, dataset, debug = False):
+	def __init__(self, pathToData, pathTemp, batchSize, dataset, args, debug = False, loadAllData = False):
+		self.args = args #Stores all command line arguments
+
+		self.loadedData = False
+
 		self.debug = debug
 		if(not(dataset in ['test', 'validate', 'train'])):
 			raise ValueError("Invalid dataset. Dataset can only be test, train, or validate.")
@@ -156,8 +158,15 @@ class DataPreProcessor(Sequence):
 		#Build index of metadata for each frame of dataset
 		#Stores the paths to all valid frames
 		#Note: path is relative to working dir, not training data dir
-		print('Building index and collecting metadata for ' + dataset + ' dataset')
-		self.frameIndex, self.metadata = self.indexData(self.tempDataDir)
+		if(loadAllData):
+			print('Building index, collecting metadata, and loading images for ' + dataset + ' dataset')
+		else:
+			print('Building index and collecting metadata for ' + dataset + ' dataset')
+		if(loadAllData):
+			self.frameIndex, self.metadata, self.frames = self.indexData(self.tempDataDir, loadAllData)
+			self.loadedData = True
+		else:
+			self.frameIndex, self.metadata = self.indexData(self.tempDataDir, loadAllData)
 
 		#Get Number of frames
 		self.numFrames = len(self.frameIndex)
@@ -173,16 +182,13 @@ class DataPreProcessor(Sequence):
 
 		#Initializing other variables
 		self.batchSize = batchSize
-	
+
 	# cleanup
 	# Should be called at the time of destroying the Preprocessor object
 	# Deletes the temporary directory from the filesystem
 	def cleanup(self):
-		print('Cleanup unpacked data? (y/n)')
-		if(yesNoPrompt()):
-			print('Removing temp directory...')
-			shutil.rmtree(self.tempDataDir)
-		print("Exiting program")
+		print('Removing temp directory...')
+		shutil.rmtree(self.tempDataDir)
 
 	# indexData
 	# Builds an index of the data for a dataset and a dictionary containing the metadata
@@ -203,14 +209,17 @@ class DataPreProcessor(Sequence):
 	# Returns:
 	# frameIndex - A set containing the filepaths to all valid frames in the dataset
 	# metadata = A dictionary containing the metadata for each frame
-	def indexData(self, path):
+	def indexData(self, path, loadAllData):
 		#Getting unzipped subject dirs
 		subjectDirs = os.listdir(path=path)
 
 		#Declare index lists and metadata dictionary to return
+		if(loadAllData):
+			frames = []
 		frameIndex = []
 		metadata = {}
 		pbar = createProgressBar()
+		frameNum = 0
 		for subject in pbar(subjectDirs):
 			subjectPath = path + "/" + subject
 			#Stores the name of the frame files in the frames dir
@@ -232,16 +241,33 @@ class DataPreProcessor(Sequence):
 					#Generate path for frame
 					framePath = subjectPath + "/frames/" + frame
 					#Write file path to index
-					frameIndex.append(framePath)
+					if(not loadAllData):
+						frameIndex.append(framePath)
+						metadata[framePath] = {
+							'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
+							'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
+							'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
+							'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
+							'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
+						}
+					else:
+						frameIndex.append(frameNum)
+						with open(framePath, 'rb') as f:
+							frames.append(np.fromstring(f.read(), dtype=np.uint8))
+						metadata[frameNum] = {
+							'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
+							'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
+							'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
+							'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
+							'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
+						}
 					#Build the dictionary containing the metadata for a frame
-					metadata[framePath] = {
-						'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
-						'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
-						'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
-						'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
-						'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
-					}
-		return frameIndex, metadata
+					
+					frameNum += 1
+		if(loadAllData):
+			return frameIndex, metadata, frames
+		else:
+			return frameIndex, metadata
 
 	# getFramesJSON
 	# Loads frames.json to a dictionary
@@ -313,7 +339,10 @@ class DataPreProcessor(Sequence):
 	# imagePath - path to image to retrieve
 	# Returns numpy array containing the image
 	def getImage(self, imagePath):
-		return 	cv2.imread(imagePath)
+		if(self.loadedData):
+			return cv2.imdecode(self.frames[imagePath], -1)
+		else:
+			return 	cv2.imread(imagePath)
 
 	# getInputImages
 	# Creates the properly formatted (cropped and scaled) images of the
@@ -496,6 +525,8 @@ class DataPreProcessor(Sequence):
 						'input_4' : faceGridBatch
 					}, labelsBatch, metaBatch
 
+
+
 	# __len__
 	# Returns the number of batches in an epoch
 	# If the number of frames is not divisible by the batchSize, num batches is rounded up
@@ -503,8 +534,11 @@ class DataPreProcessor(Sequence):
 	def __len__(self):
 		return math.ceil(self.numFrames/self.batchSize)
 
-	def on_epoch_end(self):
-	 	random.shuffle(self.frameIndex)
+	def on_epoch_begin(self):
+		if(loadedData):
+			random.shuffle(self.loadedDataIndex)
+		else:
+	 		random.shuffle(self.frameIndex)
 
 	
 
