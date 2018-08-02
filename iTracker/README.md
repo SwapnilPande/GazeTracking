@@ -40,7 +40,8 @@ Create a copy of ```ml_param_TEMPLATE.json``` and rename it to ```ml_param.json`
 	* `prexistingModelPath`: Location of the partially trained model, only read if `loadPrexistingmodel` is `true` (can be empty string otherwise)
 	* `trainLogFile`: Location of the log file associated with the trained model, only read if `loadPrexistingmodel` is `true` (can be empty string otherwise)
 * `trainingHyperparameters`: Contains all of the hyperparamters to use when training - will be disregarded if `loadPrexistingmodel` is `true`
-	* `learningRate`: Learning rate to use. Can either be a number, or a JSON object to schedule the learning rate to change. If passing the JSON object, the key of the object is the epoch at which to set the learning rate (0-indexed), and the value is the learning rate. NOTE: You must include a learning rate for epoch 0. Example
+	* `learningRate`: Learning rate to use. Can either be a number, or a JSON object to schedule the learning rate to change. If passing the JSON object, the key of the object is the epoch at which to set the learning rate (0-indexed), and the value is the learning rate. NOTE: You must include a learning rate for epoch 0. 
+	Example:
 	```
 	"learningRate" : 
 		{

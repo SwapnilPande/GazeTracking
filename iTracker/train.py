@@ -10,8 +10,7 @@ if __name__ == '__main__':
 #General imports
 import os, shutil
 import math, json
-from time import time
-
+from time import time, strftime
 
 if __name__ == '__main__':
 	#TODO Determine how to use learning rate multipliers
@@ -37,6 +36,7 @@ if __name__ == '__main__':
 
 	#Retrieve command line options
 	parser = argparse.ArgumentParser()
+	parser.add_argument("execution_name", help="Name to identify the train execution - used to name the log files")
 	parser.add_argument("-d", "--default", help="Use default options when configuring execution", action='store_true')
 	args = parser.parse_args()
 
@@ -102,7 +102,8 @@ if __name__ == '__main__':
 	#Load Data paths
 	pathToData = dataPathJSON['pathToData']
 	pathTemp = dataPathJSON['pathToTempDir']
-	pathLogging = dataPathJSON['pathLogging']
+	pathLogging = dataPathJSON['pathLogging'] + "/" + args.execution_name + '_' + strftime('%d-%m-%Y_%H-%M')
+
 
 	#Load machine parameters
 	machineParams = paramJSON['machineParameters']
@@ -151,18 +152,39 @@ if __name__ == '__main__':
 	ppTrain = processData.DataPreProcessor(pathToData, pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
 	ppValidate = processData.DataPreProcessor(pathToData, pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
 	ppTest =  processData.DataPreProcessor(pathToData, pathTemp, testBatchSize, 'test', args)
+	
 	#Initialize Logging Dir here
-	if(os.path.isfile(pathLogging + "/finalModel.h5") or
-		(os.path.isdir(pathLogging + '/checkpoints'))):
-		print("Logging directory is non-empty and contains the final model or checkpoints from a previous execution.")
-		print("Remove data? (y/n)")
-		if(yesNoPrompt(args.default, 'y')): #Empty logging directory
-			shutil.rmtree(pathLogging)
-			os.mkdir(pathLogging)
-		else:
-			raise FileExistsError('Clean logging directory or select a new directory')
+
+	#Will raise prompt if new log directory exists already and contains checkpoints
+	if(os.path.isdir(pathLogging)): #Check if log path already exists
+		if(os.path.isfile(pathLogging + "/finalModel.h5") or
+			(os.listdir(pathLogging + '/checkpoints'))): #Check if log directory is non-empty
+			print("Logging directory is non-empty and contains the final model or checkpoints from a previous execution.")
+			print("Remove data? (y/n)")
+			if(yesNoPrompt(args.default, 'n')): #Empty logging directory
+				shutil.rmtree(pathLogging)
+				os.mkdir(pathLogging)
+			else:
+				raise FileExistsError('Clean logging directory or select a new directory')
+
+			#Attempt to create checkpoint & tensorboard directories, do not raise error if directories exist
+			try:
+				os.mkdir(pathLogging + '/checkpoints')
+			except OSError as e:
+				if e.errno != errno.EEXIST:
+					raise 
+			try:
+				os.mkdir(pathLogging + '/tensorboard')
+			except OSError as e:
+				if e.errno != errno.EEXIST:
+					raise
+	else: #Logging directory does not exist
+		print("Creating logging directory")
+		os.mkdir(pathLogging)
 		os.mkdir(pathLogging + '/checkpoints')
 		os.mkdir(pathLogging + '/tensorboard')
+
+
 	print("")
 
 	##################################### IMPORT MODEL ####################################
@@ -276,8 +298,8 @@ if __name__ == '__main__':
 		steps = math.ceil(len(ppTest))
 	)
 
-	print("Saving trained model to " + pathLogging + "/finalModel.h5")
-	saveModel().save(pathLogging + "/finalModel.h5")
+	print("Saving trained model to " + pathLogging + "/final_model.h5")
+	saveModel().save(pathLogging + "/final_model.h5")
 
 	print()
 	print("FINISHED MODEL TRAINING AND EVALUATION")
