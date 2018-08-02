@@ -1,8 +1,9 @@
 #Import necessary layers for model
-from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D
+from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Flatten, ZeroPadding2D
 #Import initializers for weights and biases
 from keras.initializers import Zeros, RandomNormal
 from keras.models import Model
+from coord import CoordinateChannel2D #CoordConv layer
 
 
 ########################## Function definitions for defining model ##########################
@@ -97,44 +98,65 @@ def initializeModel():
 
 	#Defining dataflow through layers
 	#Left Eye
-	leftDataConvE1 = convE1(leftEyeInput)
+	leftDataConvE1 = CoordinateChannel2D()(leftEyeInput) #CoordConv
+	leftDataConvE1 = convE1(leftDataConvE1)
 	leftDataMaxPoolE1 = maxPoolE1(leftDataConvE1)
 	leftDataPaddingE1 = paddingE1(leftDataMaxPoolE1)
-	leftDataConvE2 = convE2(leftDataPaddingE1)
+
+	leftDataConvE2 = CoordinateChannel2D()(leftDataPaddingE1)
+	leftDataConvE2 = convE2(leftDataConvE2)
 	leftDataMaxPoolE2 = maxPoolE2(leftDataConvE2)
 	leftDataPaddingE2 = paddingE2(leftDataMaxPoolE2)
-	leftDataConvE3 = convE3(leftDataPaddingE2)
-	leftDataConvE4 = convE4(leftDataConvE3)
+
+	leftDataConvE3 = CoordinateChannel2D()(leftDataPaddingE2)
+	leftDataConvE3 = convE3(leftDataConvE3)
+
+	leftDataConvE4 = CoordinateChannel2D()(leftDataConvE3)
+	leftDataConvE4 = convE4(leftDataConvE4)
 	#Reshape data to feed into fully connected layer
-	leftEyeFinal = Reshape((9216,))(leftDataConvE4)
+	leftEyeFinal = Flatten()(leftDataConvE4)
 
 	#Right Eye
-	rightDataConvE1 = convE1(rightEyeInput)
+	rightDataConvE1 = CoordinateChannel2D()(rightEyeInput)
+	rightDataConvE1 = convE1(rightDataConvE1)
 	rightDataMaxPoolE1 = maxPoolE1(rightDataConvE1)
 	rightDataPaddingE1 = paddingE1(rightDataMaxPoolE1)
-	rightDataConvE2 = convE2(rightDataPaddingE1)
+
+	rightDataConvE2 = CoordinateChannel2D()(rightDataPaddingE1)
+	rightDataConvE2 = convE2(rightDataConvE2)
 	rightDataMaxPoolE2 = maxPoolE2(rightDataConvE2)
 	rightDataPaddingE2 = paddingE2(rightDataMaxPoolE2)
-	rightDataConvE3 = convE3(rightDataPaddingE2)
-	rightDataConvE4 = convE4(rightDataConvE3)
+
+	rightDataConvE3 = CoordinateChannel2D()(rightDataPaddingE2)
+	rightDataConvE3 = convE3(rightDataConvE3)
+
+	rightDataConvE4 = CoordinateChannel2D()(rightDataConvE3)
+	rightDataConvE4 = convE4(rightDataConvE4)
 	#Reshape data to feed into fully connected layer
-	rightEyeFinal = Reshape((9216,))(rightDataConvE4)
+	rightEyeFinal = Flatten()(rightDataConvE4)
 
 	#Combining left & right eye
 	dataLRMerge = Concatenate(axis=1)([leftEyeFinal, rightEyeFinal])
 	dataFullyConnectedE1 = fullyConnectedE1(dataLRMerge)
 
 	#Face
-	dataConvF1 = convF1(faceInput)
+	dataConvF1 = CoordinateChannel2D()(faceInput)
+	dataConvF1 = convF1(dataConvF1)
 	dataMaxPoolF1 = maxPoolF1(dataConvF1)
 	dataPaddingF1 = paddingF1(dataMaxPoolF1)
-	dataConvF2 = convF2(dataPaddingF1)
+
+	dataConvF2 = CoordinateChannel2D()(dataPaddingF1)
+	dataConvF2 = convF2(dataConvF2)
 	dataMaxPoolF2 = maxPoolF2(dataConvF2)
 	dataPaddingF2 = paddingF2(dataMaxPoolF2)
-	dataConvF3 = convF3(dataPaddingF2)
-	dataConvF4 = convF4(dataConvF3)
+
+	dataConvF3 = CoordinateChannel2D()(dataPaddingF2)
+	dataConvF3 = convF3(dataConvF3)
+
+	dataConvF4 = CoordinateChannel2D()(dataConvF3)
+	dataConvF4 = convF4(dataConvF4)
 	#Reshape data to feed into fully connected layer
-	faceFinal = Reshape((9216,))(dataConvF4)
+	faceFinal = Flatten()(dataConvF4)
 	dataFullyConnectedF1 = fullyConnectedF1(faceFinal)
 	dataFullyConnectedF2 = fullyConnectedF2(dataFullyConnectedF1)
 
