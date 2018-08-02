@@ -79,5 +79,6 @@ to execute the model, run the following:
 python train.py [-h] [-d] execution_name
 ```
 `execution name` : Name to tag the execution, used for log files
+
 `-d` : Automatically pass default values for all prompts
 
