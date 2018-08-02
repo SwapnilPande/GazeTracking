@@ -1,5 +1,3 @@
-
-
 if __name__ == '__main__':
 	import argparse #Argument parsing
 
@@ -8,7 +6,7 @@ if __name__ == '__main__':
 	parser.add_argument("execution_name", help="Name to identify the train execution - used to name the log files")
 	parser.add_argument("-d", "--default", help="Use default options when configuring execution", action='store_true')
 	args = parser.parse_args()
-	
+
 	#Run pre-train config
 	try:
 		import config
@@ -233,6 +231,7 @@ if __name__ == '__main__':
 	#Define functions to retrieve the correct model depending on mutli gpu or not
 	def trainModel(): return iTrackerModel 
 	def saveModel(): return iTrackerModelOriginal if useMultiGPU else iTrackerModel
+
 	################################### DEFINE CALLBACKS ##################################
 	logPeriod = 1 #Frequency at which to log data
 
@@ -308,5 +307,8 @@ if __name__ == '__main__':
 	print("Final test loss: " + str(testLoss))
 	print('\nCleanup unpacked data? (y/n)')
 	if(yesNoPrompt(args.default, 'n')):
-		ppTrain.cleanup() #Call one on, but deletes temp dir, so deletes tenp data for all datasets
+		print('\nAre you sure? THIS WILL DELETE ALL UNPACKED DATA (y/n)')
+		if(yesNoPrompt(args.default, 'n')):
+			ppTrain.cleanup() #Call one on, but deletes temp dir, so deletes tenp data for all datasets
+	print("Exiting train.py")
 
