@@ -11,6 +11,8 @@ keras = "*"
 opencv-python = "*"
 "progressbar2" = "*"
 tensorboard = "*"
+pygame = "*"
+socketio-client-nexus = "*"
 argparse = "*"
 
 [requires]
