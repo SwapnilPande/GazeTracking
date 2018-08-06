@@ -1,8 +1,6 @@
 temp
 ml_param.json
-predict_param.json
 config.py
 *.pyc
 *.hdf5
 iTracker-log*
-predict_param.json
