@@ -8,8 +8,8 @@ import math
 import tarfile
 from keras.utils import Sequence
 from keras.utils.training_utils import multi_gpu_model
-from uiUtils import yesNoPrompt, createProgressBar
-import imageUtils
+from utils.uiUtils import yesNoPrompt, createProgressBar
+from utils import imageUtils
 
 
 def initializeData(pathToData, pathTemp, trainProportion, validateProportion, args):
@@ -141,7 +141,7 @@ class DataPreProcessor(Sequence):
 	# 			each dictionary contains 5 keys: face, leftEye, rightEye, faceGrid, and label
 	#			each of these keys refers to a dictionary containing the necessary metadata to describe feature
 	# sampledFrames - stores sets that described the data that has already been sampled in the current epoch
-	def __init__(self, pathToData, pathTemp, batchSize, dataset, args, debug = False, loadAllData = False):
+	def __init__(self, pathTemp, batchSize, dataset, args, debug = False, loadAllData = False):
 		self.args = args #Stores all command line arguments
 
 		self.loadedData = False
@@ -533,13 +533,6 @@ class DataPreProcessor(Sequence):
 	# Last batch is smaller than batchSize
 	def __len__(self):
 		return math.ceil(self.numFrames/self.batchSize)
-
-	def on_epoch_begin(self):
-		if(loadedData):
-			random.shuffle(self.loadedDataIndex)
-		else:
-	 		random.shuffle(self.frameIndex)
-
 	
 
 

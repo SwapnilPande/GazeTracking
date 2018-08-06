@@ -1,4 +1,4 @@
-import processData
+import utils.DataProcessor
 import json
 import math
 
@@ -11,14 +11,14 @@ pathTemp = dataPathJSON['pathToTempDir']
 
 batchSize = 10
 
-processData.initializeData(pathToData,pathTemp, 0.5, 0.25)
+utils.DataProcessor.initializeData(pathToData,pathTemp, 0.5, 0.25)
 
-trainGenerator = processData.DataPreProcessor(pathToData, pathTemp, batchSize, 'train', debug = True)
-validateGenerator = processData.DataPreProcessor(pathToData, pathTemp, batchSize, 'validate', debug = True)
-testGenerator = processData.DataPreProcessor(pathToData, pathTemp, batchSize, 'test', debug = True)
+trainGenerator = utils.DataProcessor.DataPreProcessor(pathToData, pathTemp, batchSize, 'train', debug = True)
+validateGenerator = utils.DataProcessor.DataPreProcessor(pathToData, pathTemp, batchSize, 'validate', debug = True)
+testGenerator = utils.DataProcessor.DataPreProcessor(pathToData, pathTemp, batchSize, 'test', debug = True)
 
 try:
-	crapGen = processData.DataPreProcessor(pathToData, pathTemp, batchSize, 'other')
+	crapGen = utils.DataProcessor.DataPreProcessor(pathToData, pathTemp, batchSize, 'other')
 except ValueError:
 	print("Successfully caught error for creating invalid dataset")
 

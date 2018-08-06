@@ -1,44 +1,38 @@
-from uiUtils import yesNoPrompt
+# ARGS
+import argparse #Argument parsing
+#Retrieve command line options
+parser = argparse.ArgumentParser()
+parser.add_argument("data_directory", help="Directory containing the unzipped data. Directory should contain 'train', 'validate', and 'test' directories.")
+parser.add_argument("-d", "--default", help="Use default options when configuring execution", action='store_true')
+args = parser.parse_args()
+
+
+from utils.uiUtils import yesNoPrompt
+from utils import uiUtils
 #Custom datset processor
-import processData
-import uiUtils
+from utils import DataProcessor
 import json
 import cv2
 import numpy as np
-
-with open('ml_param.json') as f: #Open paramter file
-	paramJSON = json.load(f) #Load JSON as dict
-
-dataPathJSON = paramJSON['dataPaths'] # Extract datapath information
-pathToData = dataPathJSON['pathToData']
-pathTemp = dataPathJSON['pathToTempDir']
-
-trainSetProportion = paramJSON['trainingHyperparameters']['trainSetProportion']
-validateSetProportion = paramJSON['trainingHyperparameters']['validateSetProportion']
-
-#Initialize Data pre-processor here
-processData.initializeData(pathToData, pathTemp, trainSetProportion, validateSetProportion)
 
 #Prompt user to select dataset
 print("Which dataset would you like to visualize?")
 dataset = uiUtils.listOptionsPrompt(['train','validate','test', 'exit'])
 
 while(dataset != 'exit'):
-	pp = processData.DataPreProcessor(pathToData, pathTemp, 1, dataset, debug = True)
-	numImages = len(pp) #Get the total number of images in the dataset
-	for i in range(0, numImages):
-		input, labels, meta = pp.__getitem__(i)#Title String
+	pp = DataProcessor.DataPreProcessor(args.data_directory, 1, dataset, args, debug = True)
+	for i, (inputs,labels, meta) in enumerate(pp):
 		title =  'Image #' + str(i) 
-		title += ', ' + str(meta[0]).replace(pathTemp,'')
+		title += ', ' + str(meta[0]).replace(args.data_directory,'')
 		print(title)
 
 		print('LABELS')
 		print(labels[0]) 
-		fgDisplay = cv2.resize(np.reshape(input['input_4'], (25,25)), (224,224))
+		fgDisplay = cv2.resize(np.reshape(inputs['input_4'], (25,25)), (224,224))
 		fgDisplay = np.stack((fgDisplay, fgDisplay, fgDisplay), axis = 2)
 		
 		#Place 3 images side by side to display
-		output = np.concatenate((input['input_3'][0], fgDisplay, input['input_1'][0], input['input_2'][0]), axis = 1)
+		output = np.concatenate((inputs['input_3'][0], fgDisplay, inputs['input_1'][0], inputs['input_2'][0]), axis = 1)
 		#Show images
 		cv2.imshow(title, output)
 

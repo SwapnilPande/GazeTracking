@@ -5,7 +5,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("execution_name", help="Name to identify the train execution - used to name the log files")
 	parser.add_argument("-d", "--default", help="Use default options when configuring execution", action='store_true')
-	args = parser.parse_args()
+	args =  parser.parse_args()
 
 	#Run pre-train config
 	try:
@@ -23,7 +23,6 @@ from time import time, strftime
 if __name__ == '__main__':
 	#TODO Determine how to use learning rate multipliers
 	#TODO Determine how to use grouping in convolutional layer
-	#TODO Determine how to create LRN layer
 
 	#Keras imports
 	from keras.models import Model, load_model
@@ -35,10 +34,10 @@ if __name__ == '__main__':
 	import tensorflow as tf
 
 	#Custom imports
-	from uiUtils import yesNoPrompt #UI prompts
-	from customCallbacks import Logger #Logger callback for logging training progress
-	import processData 	#Custom datset processor
-	import iTrackerModel #Machine learning model import
+	from utils.uiUtils import yesNoPrompt #UI prompts
+	from utils.customCallbacks import Logger #Logger callback for logging training progress
+	from utils import DataProcessor #Custom datset processor
+	import iTrackerModel # Machine learning model import
 
 
 
@@ -145,13 +144,13 @@ if __name__ == '__main__':
 
 	#Load Machine parameters
 
-	processData.initializeData(pathToData, pathTemp, trainSetProportion, validateSetProportion, args)
+	DataProcessor.initializeData(pathToData, pathTemp, trainSetProportion, validateSetProportion, args)
 
 
 	#Initialize Data pre-processor here
-	ppTrain = processData.DataPreProcessor(pathToData, pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
-	ppValidate = processData.DataPreProcessor(pathToData, pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
-	ppTest =  processData.DataPreProcessor(pathToData, pathTemp, testBatchSize, 'test', args)
+	ppTrain = DataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
+	ppValidate = DataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
+	ppTest =  DataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
 	
 	#Initialize Logging Dir here
 
@@ -290,7 +289,8 @@ if __name__ == '__main__':
 			callbacks = callbacks,
 			initial_epoch = initialEpoch,
 			workers = numWorkers,
-			max_queue_size = queueSize
+			max_queue_size = queueSize,
+			shuffle=True
 		)
 
 	#Evaluate model here
