@@ -4,6 +4,7 @@ from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshap
 from keras.initializers import Zeros, RandomNormal
 from keras.models import Model
 from keras.layers.normalization import BatchNormalization
+from keras import regularizers
 
 ########################## Function definitions for defining model ##########################
 def randNormKernelInitializer():
@@ -27,7 +28,8 @@ def createConvLayer(filters, kernelSize, stride):
                 activation = 'relu',
                 use_bias = True,
                 kernel_initializer = randNormKernelInitializer(),
-                bias_initializer = 'zeros'
+                bias_initializer = 'zeros',
+                kernel_regularizer=regularizers.l2(0.01)
                 )
 
 # createMaxPool
@@ -47,7 +49,8 @@ def createFullyConnected(units, activation = 'relu'):
                 activation = activation,
                 use_bias = True,
                 kernel_initializer = randNormKernelInitializer(),
-                bias_initializer = 'zeros'
+                bias_initializer = 'zeros',
+                kernel_regularizer=regularizers.l2(0.01)
                 )
 def createBN():
         return  BatchNormalization()
@@ -113,7 +116,7 @@ def initializeModel():
         leftDataConvE3 = convE3(leftDataPaddingE2)
         leftDataConvE4 = convE4(leftDataConvE3)
         #Reshape data to feed into fully connected layer
-        leftEyeFinal = Reshape((10816,))(leftDataConvE4)
+        leftEyeFinal =Flatten()(leftDataConvE4)
 
         #Right Eye
         rightDataConvE1 = convE1(rightEyeInput)
@@ -127,7 +130,7 @@ def initializeModel():
         rightDataConvE3 = convE3(rightDataPaddingE2)
         rightDataConvE4 = convE4(rightDataConvE3)
         #Reshape data to feed into fully connected layer
-        rightEyeFinal = Reshape((10816,))(rightDataConvE4)
+        rightEyeFinal =Flatten()(rightDataConvE4)
 
         #Combining left & right eye
         dataLRMerge = Concatenate(axis=1)([leftEyeFinal, rightEyeFinal])
@@ -145,7 +148,7 @@ def initializeModel():
         dataConvF3 = convF3(dataPaddingF2)
         dataConvF4 = convF4(dataConvF3)
         #Reshape data to feed into fully connected layer
-        faceFinal = Reshape((10816,))(dataConvF4)
+        faceFinal = Flatten()(dataConvF4)
         dataFullyConnectedF1 = fullyConnectedF1(faceFinal)
         dataFullyConnectedF2 = fullyConnectedF2(dataFullyConnectedF1)
 
