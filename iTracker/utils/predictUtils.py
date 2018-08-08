@@ -22,11 +22,7 @@ class Predictor:
 			input4Shape[-1:] == (625,) and
 			input1Shape[0] == input2Shape[0] 
 			== input3Shape[0] == input4Shape[0]):
-			#If batch size is 1, extract prediction from output array
-			if(input['input_1'].shape[0] == 1):
-				return self.model.predict(input)[0]
-			else:
-				return self.model.predict(input)
+			return self.model.predict(input)
 		else:
 			print("Invalid Input")
 			return (None,None)

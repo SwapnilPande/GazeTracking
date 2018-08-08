@@ -103,7 +103,7 @@ def predictGaze(data):
 					'input_2' : np.expand_dims(rightEye,axis=0), 
 					'input_4' : np.expand_dims(faceGrid, axis=0)
 					}
-		prediction = predictor.predict(predictionInput)
+		prediction = predictor.predict(predictionInput)[0]
 
 		end = time.time()
 		print(1/(end-start))
