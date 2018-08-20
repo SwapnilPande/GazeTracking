@@ -4,6 +4,8 @@ from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshap
 from keras.initializers import Zeros, RandomNormal
 from keras.models import Model
 from keras.layers.normalization import BatchNormalization
+import keras.backend as K
+from keras.layers.core import Lambda
 
 ########################## Function definitions for defining model ##########################
 def randNormKernelInitializer():
@@ -22,7 +24,7 @@ def randNormKernelInitializer():
 def createConvLayer(filters, kernelSize, stride):
         return Conv2D(
                 filters,
-                kernelSize, 
+                kernelSize,
                 strides = stride,
                 activation = 'relu',
                 use_bias = True,
@@ -52,6 +54,9 @@ def createFullyConnected(units, activation = 'relu'):
 def createBN():
         return  BatchNormalization()
 
+def myFunc(x):
+        return Concatenate(axis=-1)([K.cos(x[0])*x[2]+x[3],K.cos(x[1])*x[2]+x[4]])
+
 def initializeModel():
         print("Initializing Model")
         #Defining input here
@@ -59,7 +64,7 @@ def initializeModel():
         rightEyeInput = Input(shape=(227,227,3,))
         faceInput = Input(shape=(227,227,3,))
         faceGridInput = Input(shape=(625,))
-
+        
         #Define convolutional layers for left and right eye inputs
         convE1 = createConvLayer(96, 11, 4)
         maxPoolE1 = createMaxPool()
@@ -86,18 +91,32 @@ def initializeModel():
 
         #Define fully connected layer for left & right eye concatenation
         fullyConnectedE1 = createFullyConnected(128)
+        fullyConnectedE2 = createFullyConnected(64)
 
         #Define fully connected layers for face
         fullyConnectedF1 = createFullyConnected(128)
         fullyConnectedF2 = createFullyConnected(64)
+        #Define full connected layer for face and eye
+        fullyConnectedEF = createFullyConnected(64)
 
+        #Define full connected layer for alpha beta
+        fullyConnectedAlpha = createFullyConnected(1, 'linear')
+        fullyConnectedBeta = createFullyConnected(1, 'linear')
+        
         #Define fully connected layers for face grid
         fullyConnectedFG1 = createFullyConnected(256)
         fullyConnectedFG2 = createFullyConnected(128)
+        fullyConnectedFG3 = createFullyConnected(64)
+
+        #Define full connected layers for distance x ,y
+        fullyConnectedDistance = createFullyConnected(1, 'linear')
+        fullyConnectedXbias = createFullyConnected(1, 'linear')
+        fullyConnectedYbias = createFullyConnected(1, 'linear')
 
         #Define fully connected layers for eyes & face & face grid
-        fullyConnected1 = createFullyConnected(128)
+
         fullyConnected2 = createFullyConnected(2, 'linear')
+        lambdaLayer = Lambda(myFunc, output_shape=(2,))
 
 
         #Defining dataflow through layers
@@ -132,7 +151,7 @@ def initializeModel():
         #Combining left & right eye
         dataLRMerge = Concatenate(axis=1)([leftEyeFinal, rightEyeFinal])
         dataFullyConnectedE1 = fullyConnectedE1(dataLRMerge)
-
+        dataFullyConnectedE2 = fullyConnectedE2(dataFullyConnectedE1)
         #Face
         dataConvF1 = convF1(faceInput)
         dataMaxPoolF1 = maxPoolF1(dataConvF1)
@@ -149,15 +168,30 @@ def initializeModel():
         dataFullyConnectedF1 = fullyConnectedF1(faceFinal)
         dataFullyConnectedF2 = fullyConnectedF2(dataFullyConnectedF1)
 
+        #combining eye & face
+        dataImageMerge =  Concatenate(axis=1)([dataFullyConnectedE2, dataFullyConnectedF2])
 
+        # alpha beta
+        dataFullyConnectedEF=fullyConnectedEF(dataImageMerge)
+        dataAlpha = fullyConnectedAlpha(dataFullyConnectedEF)
+        dataBeta = fullyConnectedBeta(dataFullyConnectedEF)
+
+        
         #Face grid
         dataFullyConnectedFG1 = fullyConnectedFG1(faceGridInput)
         dataFullyConnectedFG2 = fullyConnectedFG2(dataFullyConnectedFG1)
+        dataFullyConnectedFG3 = fullyConnectedFG3(dataFullyConnectedFG2)
 
+
+        # distance Xbias Ybias
+        dataDistance =  fullyConnectedDistance(dataFullyConnectedFG3)
+        dataXbias=fullyConnectedXbias(dataFullyConnectedFG3)
+        dataYbias=fullyConnectedYbias(dataFullyConnectedFG3)
+        
         #Combining Eyes & Face & Face Grid
-        finalMerge = Concatenate(axis=1)([dataFullyConnectedE1, dataFullyConnectedF2, dataFullyConnectedFG2])
-        dataFullyConnected1 = fullyConnected1(finalMerge)
-        finalOutput = fullyConnected2(dataFullyConnected1)
+#        finalMerge = Concatenate(axis=1)([dataFullyConnectedE1, dataFullyConnectedF2, dataFullyConnectedFG2])
+ #       dataFullyConnected1 = fullyConnected1(finalMerge)
+        finalOutput = lambdaLayer(([dataAlpha,dataBeta,dataDistance,dataXbias,dataYbias]))
 
 
         #Return the fully constructed model
