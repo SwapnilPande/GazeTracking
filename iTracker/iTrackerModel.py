@@ -70,6 +70,7 @@ def initializeModel():
         paddingE2 = createPadding(1)
         convE3 = createConvLayer(384, 3, 1)
         convE4 = createConvLayer(64, 1, 1)
+        maxPoolE3 = createMaxPool()
 
         #Define convolutional layers for face input
         convF1 = createConvLayer(96, 11, 4)
@@ -81,7 +82,8 @@ def initializeModel():
         paddingF2 = createPadding(1)
         convF3 = createConvLayer(384, 3, 1)
         convF4 = createConvLayer(64, 1, 1)
-
+        maxPoolF3 = createMaxPool()
+        
         #Define fully connected layer for left & right eye concatenation
         fullyConnectedE1 = createFullyConnected(128)
 
@@ -110,8 +112,9 @@ def initializeModel():
         leftDataPaddingE2 = paddingE2(leftDataMaxPoolE2)
         leftDataConvE3 = convE3(leftDataPaddingE2)
         leftDataConvE4 = convE4(leftDataConvE3)
+        leftDataMaxPoolE3 = maxPoolE3(leftDataConvE4)
         #Reshape data to feed into fully connected layer
-        leftEyeFinal = Reshape((10816,))(leftDataConvE4)
+        leftEyeFinal = Reshape((2304,))(leftDataMaxPoolE3)
 
         #Right Eye
         rightDataConvE1 = convE1(rightEyeInput)
@@ -124,8 +127,9 @@ def initializeModel():
         rightDataPaddingE2 = paddingE2(rightDataMaxPoolE2)
         rightDataConvE3 = convE3(rightDataPaddingE2)
         rightDataConvE4 = convE4(rightDataConvE3)
+        rightDataMaxPoolE3 = maxPoolE3(rightDataConvE4)
         #Reshape data to feed into fully connected layer
-        rightEyeFinal = Reshape((10816,))(rightDataConvE4)
+        rightEyeFinal = Reshape((2304,))(rightDataMaxPoolE3)
 
         #Combining left & right eye
         dataLRMerge = Concatenate(axis=1)([leftEyeFinal, rightEyeFinal])
@@ -142,8 +146,9 @@ def initializeModel():
         dataPaddingF2 = paddingF2(dataMaxPoolF2)
         dataConvF3 = convF3(dataPaddingF2)
         dataConvF4 = convF4(dataConvF3)
+        dataMaxPoolF3 = maxPoolF3(dataConvF4)
         #Reshape data to feed into fully connected layer
-        faceFinal = Reshape((10816,))(dataConvF4)
+        faceFinal = Reshape((2304,))(dataMaxPoolF3)
         dataFullyConnectedF1 = fullyConnectedF1(faceFinal)
         dataFullyConnectedF2 = fullyConnectedF2(dataFullyConnectedF1)
 
