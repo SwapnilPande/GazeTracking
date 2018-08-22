@@ -22,7 +22,7 @@ def randNormKernelInitializer():
 def createConvLayer(filters, kernelSize, stride):
         return Conv2D(
                 filters,
-                kernelSize, 
+                kernelSize,
                 strides = stride,
                 activation = 'relu',
                 use_bias = True,
@@ -59,7 +59,7 @@ def initializeModel():
         rightEyeInput = Input(shape=(227,227,3,))
         faceInput = Input(shape=(227,227,3,))
         faceGridInput = Input(shape=(625,))
-
+        
         #Define convolutional layers for left and right eye inputs
         convE1 = createConvLayer(96, 11, 4)
         maxPoolE1 = createMaxPool()
@@ -67,7 +67,6 @@ def initializeModel():
         paddingE1 = createPadding(2)
         convE2 = createConvLayer(256, 5, 1)
         maxPoolE2 = createMaxPool()
-        BNE2 =createBN()
         paddingE2 = createPadding(1)
         convE3 = createConvLayer(384, 3, 1)
         convE4 = createConvLayer(64, 1, 1)
@@ -79,7 +78,6 @@ def initializeModel():
         paddingF1 = createPadding(2)
         convF2 = createConvLayer(256, 5, 1)
         maxPoolF2 = createMaxPool()
-        BNF2 =createBN()
         paddingF2 = createPadding(1)
         convF3 = createConvLayer(384, 3, 1)
         convF4 = createConvLayer(64, 1, 1)
@@ -108,8 +106,8 @@ def initializeModel():
         leftDataPaddingE1 = paddingE1(leftDataBNE1)
         leftDataConvE2 = convE2(leftDataPaddingE1)
         leftDataMaxPoolE2 = maxPoolE2(leftDataConvE2)
-        leftDataBNE2= BNE2(leftDataMaxPoolE2)
-        leftDataPaddingE2 = paddingE2(leftDataBNE2)
+
+        leftDataPaddingE2 = paddingE2(leftDataMaxPoolE2)
         leftDataConvE3 = convE3(leftDataPaddingE2)
         leftDataConvE4 = convE4(leftDataConvE3)
         #Reshape data to feed into fully connected layer
@@ -122,8 +120,8 @@ def initializeModel():
         rightDataPaddingE1 = paddingE1(righttDataBNE1)
         rightDataConvE2 = convE2(rightDataPaddingE1)
         rightDataMaxPoolE2 = maxPoolE2(rightDataConvE2)
-        rightDataBNE2= BNE2(rightDataMaxPoolE2)
-        rightDataPaddingE2 = paddingE2(rightDataBNE2)
+
+        rightDataPaddingE2 = paddingE2(rightDataMaxPoolE2)
         rightDataConvE3 = convE3(rightDataPaddingE2)
         rightDataConvE4 = convE4(rightDataConvE3)
         #Reshape data to feed into fully connected layer
@@ -140,8 +138,8 @@ def initializeModel():
         dataPaddingF1 = paddingF1(dataBNF1)
         dataConvF2 = convF2(dataPaddingF1)
         dataMaxPoolF2 = maxPoolF2(dataConvF2)
-        dataBNF2= BNF2(dataMaxPoolF2)
-        dataPaddingF2 = paddingF2(dataBNF2)
+
+        dataPaddingF2 = paddingF2(dataMaxPoolF2)
         dataConvF3 = convF3(dataPaddingF2)
         dataConvF4 = convF4(dataConvF3)
         #Reshape data to feed into fully connected layer
