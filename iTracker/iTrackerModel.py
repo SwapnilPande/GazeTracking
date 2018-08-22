@@ -69,7 +69,8 @@ def initializeModel():
         maxPoolE2 = createMaxPool()
         paddingE2 = createPadding(1)
         convE3 = createConvLayer(384, 3, 1)
-        convE4 = createConvLayer(64, 1, 1)
+        paddingE3 = createPadding(1)
+        convE4 = createConvLayer(64, 3, 1)
         maxPoolE3 = createMaxPool()
 
         #Define convolutional layers for face input
@@ -81,7 +82,8 @@ def initializeModel():
         maxPoolF2 = createMaxPool()
         paddingF2 = createPadding(1)
         convF3 = createConvLayer(384, 3, 1)
-        convF4 = createConvLayer(64, 1, 1)
+        paddingF3 = createPadding(1)
+        convF4 = createConvLayer(64, 3, 1)
         maxPoolF3 = createMaxPool()
         
         #Define fully connected layer for left & right eye concatenation
@@ -111,7 +113,8 @@ def initializeModel():
 
         leftDataPaddingE2 = paddingE2(leftDataMaxPoolE2)
         leftDataConvE3 = convE3(leftDataPaddingE2)
-        leftDataConvE4 = convE4(leftDataConvE3)
+        leftDataPaddingE3 = paddingE3(leftDataConvE3)
+        leftDataConvE4 = convE4(leftDataPaddingE3)
         leftDataMaxPoolE3 = maxPoolE3(leftDataConvE4)
         #Reshape data to feed into fully connected layer
         leftEyeFinal = Reshape((2304,))(leftDataMaxPoolE3)
@@ -123,10 +126,10 @@ def initializeModel():
         rightDataPaddingE1 = paddingE1(righttDataBNE1)
         rightDataConvE2 = convE2(rightDataPaddingE1)
         rightDataMaxPoolE2 = maxPoolE2(rightDataConvE2)
-
         rightDataPaddingE2 = paddingE2(rightDataMaxPoolE2)
         rightDataConvE3 = convE3(rightDataPaddingE2)
-        rightDataConvE4 = convE4(rightDataConvE3)
+        rightDataPaddingE3 = paddingE3(rightDataConvE3)
+        rightDataConvE4 = convE4(rightDataPaddingE3)
         rightDataMaxPoolE3 = maxPoolE3(rightDataConvE4)
         #Reshape data to feed into fully connected layer
         rightEyeFinal = Reshape((2304,))(rightDataMaxPoolE3)
@@ -145,7 +148,8 @@ def initializeModel():
 
         dataPaddingF2 = paddingF2(dataMaxPoolF2)
         dataConvF3 = convF3(dataPaddingF2)
-        dataConvF4 = convF4(dataConvF3)
+        dataPaddingF3 = paddingF3(dataConvF3)
+        dataConvF4 = convF4(dataPaddingF3)
         dataMaxPoolF3 = maxPoolF3(dataConvF4)
         #Reshape data to feed into fully connected layer
         faceFinal = Reshape((2304,))(dataMaxPoolF3)
