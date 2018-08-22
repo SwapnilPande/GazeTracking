@@ -55,7 +55,7 @@ def createBN():
         return  BatchNormalization()
 
 def myFunc(x):
-        return Concatenate(axis=-1)([K.cos(x[0])*x[2]+x[3],K.cos(x[1])*x[2]+x[4]])
+        return Concatenate(axis=-1)([(K.sin(x[0])/K.cos(x[0]))*x[2]+x[3],(K.sin(x[1])/K.cos(x[1]))*x[2]+x[4]])
 
 def initializeModel():
         print("Initializing Model")
