@@ -10,6 +10,7 @@ from keras.utils import Sequence
 from keras.utils.training_utils import multi_gpu_model
 from utils.uiUtils import yesNoPrompt, createProgressBar
 from utils import imageUtils
+import tensorflow.image as image
 
 
 def initializeData(pathToData, pathTemp, trainProportion, validateProportion, args):
@@ -353,7 +354,7 @@ class DataPreProcessor(Sequence):
         def getInputImages(self, imagePaths):
                 #Desired size of images after processing
                 desiredImageSize = 227
-
+                
                 #Creating numpy arrays to store images
                 faceImages = np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3))
                 leftEyeImages =  np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3)) 
@@ -427,7 +428,43 @@ class DataPreProcessor(Sequence):
                 rightEyeImages = imageUtils.normalize(rightEyeImages, 255)
 
                 return faceImages, leftEyeImages, rightEyeImages
+        # getInputFullImages
+        # Creates the properly formatted (cropped and scaled) images of the
+        # face, left eye, and right eye
+        # Arguments:
+        # imagePath - List of the paths of the images to retrieve
+        # Returns 4D 3 NumPy arrays containing the images (image, x, y, channel)
+        def getInputFullImages(self, imagePaths):
+                #Desired size of images after processing
+                desiredImageSize = 323
 
+                #Creating numpy arrays to store images
+                FullImages = np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3))
+                #Iterate over all imagePaths to retrieve images
+                for i, frame in enumerate(imagePaths):
+                        #Reading in frame from file
+                        image = self.getImage(frame)
+                        if(image.shape[0]>image.shape[1]):
+                                imageSize=int(image.shape[0])
+                        else:
+                                imageSize=int(image.shape[1])
+
+                        image =image.resize_image_with_crop_or_pad(image. imageSize,imageSize)
+                        
+
+                        #Resize images to 224x224 to pass to neural network
+                        faceImage = imageUtils.resize(image, desiredImageSize)
+
+                        #Writing process images to np array
+                        faceImages[i] = faceImage
+
+                #Noramlize all data to scale 0-1
+                faceImages = imageUtils.normalize(faceImages, 255)
+
+                return faceImages
+
+
+        
         # getFaceGrids
         # Extract the faceGrid information from JSON to numpy array
         # Arguments:
@@ -506,23 +543,19 @@ class DataPreProcessor(Sequence):
                 except IndexError: #Retrieve small batch at the end of the array
                         framesToRetrieve = self.frameIndex[startIndex:]
 
-                faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve)
-                faceGridBatch = self.getFaceGrids(framesToRetrieve)
-                labelsBatch = self.getLabels(framesToRetrieve)
+                faceBatch =self.getInputFullImage(framesToRetrieve)
+#                faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve)
+ #               faceGridBatch = self.getFaceGrids(framesToRetrieve)
+  #              labelsBatch = self.getLabels(framesToRetrieve)
                 if(not self.debug):
                         return {
-                                                'input_3' : faceBatch, 
-                                                'input_1' : leftEyeBatch, 
-                                                'input_2' : rightEyeBatch, 
-                                                'input_4' : faceGridBatch
+                                                'input_1' : faceBatch, 
+
                                         }, labelsBatch#, metaBatch
                 else:
                         metaBatch = np.array(framesToRetrieve)
                         return {
-                                                'input_3' : faceBatch, 
-                                                'input_1' : leftEyeBatch, 
-                                                'input_2' : rightEyeBatch, 
-                                                'input_4' : faceGridBatch
+                                                'input_1' : faceBatch, 
                                         }, labelsBatch, metaBatch
 
 

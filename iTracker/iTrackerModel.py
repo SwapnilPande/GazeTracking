@@ -55,23 +55,8 @@ def createBN():
 def initializeModel():
         print("Initializing Model")
         #Defining input here
-        leftEyeInput = Input(shape=(227,227,3,))
-        rightEyeInput = Input(shape=(227,227,3,))
-        faceInput = Input(shape=(227,227,3,))
-        faceGridInput = Input(shape=(625,))
-
-        #Define convolutional layers for left and right eye inputs
-        convE1 = createConvLayer(96, 11, 4)
-        maxPoolE1 = createMaxPool()
-        BNE1 =createBN()
-        paddingE1 = createPadding(2)
-        convE2 = createConvLayer(256, 5, 1)
-        maxPoolE2 = createMaxPool()
-        BNE2 =createBN()
-        paddingE2 = createPadding(1)
-        convE3 = createConvLayer(384, 3, 1)
-        convE4 = createConvLayer(64, 1, 1)
-
+        imageInput =Input(shape=(323,323,3,))
+        
         #Define convolutional layers for face input
         convF1 = createConvLayer(96, 11, 4)
         maxPoolF1 = createMaxPool()
@@ -82,59 +67,22 @@ def initializeModel():
         BNF2 =createBN()
         paddingF2 = createPadding(1)
         convF3 = createConvLayer(384, 3, 1)
-        convF4 = createConvLayer(64, 1, 1)
-
-        #Define fully connected layer for left & right eye concatenation
-        fullyConnectedE1 = createFullyConnected(128)
+        paddingF3 = createPadding(1)
+        convF4 = createConvLayer(64, 3, 1)
+        maxPoolF3 = createMaxPool()
+        
 
         #Define fully connected layers for face
-        fullyConnectedF1 = createFullyConnected(128)
-        fullyConnectedF2 = createFullyConnected(64)
-
-        #Define fully connected layers for face grid
-        fullyConnectedFG1 = createFullyConnected(256)
-        fullyConnectedFG2 = createFullyConnected(128)
+        fullyConnected1 = createFullyConnected(128)
+        fullyConnected2 = createFullyConnected(128)
 
         #Define fully connected layers for eyes & face & face grid
-        fullyConnected1 = createFullyConnected(128)
-        fullyConnected2 = createFullyConnected(2, 'linear')
+        fullyConnected3 = createFullyConnected(64)
+        fullyConnected4 = createFullyConnected(2, 'linear')
 
 
-        #Defining dataflow through layers
-        #Left Eye
-        leftDataConvE1 = convE1(leftEyeInput)
-        leftDataMaxPoolE1 = maxPoolE1(leftDataConvE1)
-        leftDataBNE1= BNE1(leftDataMaxPoolE1)
-        leftDataPaddingE1 = paddingE1(leftDataBNE1)
-        leftDataConvE2 = convE2(leftDataPaddingE1)
-        leftDataMaxPoolE2 = maxPoolE2(leftDataConvE2)
-        leftDataBNE2= BNE2(leftDataMaxPoolE2)
-        leftDataPaddingE2 = paddingE2(leftDataBNE2)
-        leftDataConvE3 = convE3(leftDataPaddingE2)
-        leftDataConvE4 = convE4(leftDataConvE3)
-        #Reshape data to feed into fully connected layer
-        leftEyeFinal = Reshape((10816,))(leftDataConvE4)
-
-        #Right Eye
-        rightDataConvE1 = convE1(rightEyeInput)
-        rightDataMaxPoolE1 = maxPoolE1(rightDataConvE1)
-        righttDataBNE1= BNE1(rightDataMaxPoolE1)
-        rightDataPaddingE1 = paddingE1(righttDataBNE1)
-        rightDataConvE2 = convE2(rightDataPaddingE1)
-        rightDataMaxPoolE2 = maxPoolE2(rightDataConvE2)
-        rightDataBNE2= BNE2(rightDataMaxPoolE2)
-        rightDataPaddingE2 = paddingE2(rightDataBNE2)
-        rightDataConvE3 = convE3(rightDataPaddingE2)
-        rightDataConvE4 = convE4(rightDataConvE3)
-        #Reshape data to feed into fully connected layer
-        rightEyeFinal = Reshape((10816,))(rightDataConvE4)
-
-        #Combining left & right eye
-        dataLRMerge = Concatenate(axis=1)([leftEyeFinal, rightEyeFinal])
-        dataFullyConnectedE1 = fullyConnectedE1(dataLRMerge)
-
-        #Face
-        dataConvF1 = convF1(faceInput)
+        #FullImage
+        dataConvF1 = convF1(imageInput)
         dataMaxPoolF1 = maxPoolF1(dataConvF1)
         dataBNF1= BNF1(dataMaxPoolF1)
         dataPaddingF1 = paddingF1(dataBNF1)
@@ -143,22 +91,17 @@ def initializeModel():
         dataBNF2= BNF2(dataMaxPoolF2)
         dataPaddingF2 = paddingF2(dataBNF2)
         dataConvF3 = convF3(dataPaddingF2)
-        dataConvF4 = convF4(dataConvF3)
+        dataPaddingF3 = paddingF3(dataConvF3)
+        dataConvF4 = convF4(dataPaddingF3)
+        dataMaxPoolF3 =maxPoolF3(dataConvF4)
+        
         #Reshape data to feed into fully connected layer
-        faceFinal = Reshape((10816,))(dataConvF4)
-        dataFullyConnectedF1 = fullyConnectedF1(faceFinal)
-        dataFullyConnectedF2 = fullyConnectedF2(dataFullyConnectedF1)
-
-
-        #Face grid
-        dataFullyConnectedFG1 = fullyConnectedFG1(faceGridInput)
-        dataFullyConnectedFG2 = fullyConnectedFG2(dataFullyConnectedFG1)
-
-        #Combining Eyes & Face & Face Grid
-        finalMerge = Concatenate(axis=1)([dataFullyConnectedE1, dataFullyConnectedF2, dataFullyConnectedFG2])
-        dataFullyConnected1 = fullyConnected1(finalMerge)
-        finalOutput = fullyConnected2(dataFullyConnected1)
+        faceFinal = Reshape((5184,))(dataMaxPoolF3)
+        dataFullyConnected1 = fullyConnected1(faceFinal)
+        dataFullyConnected2 = fullyConnected2(dataFullyConnected1)
+        dataFullyConnected3 = fullyConnected3(dataFullyConnected2)
+        finalOutput = fullyConnected4(dataFullyConnected3)
 
 
         #Return the fully constructed model
-        return Model(inputs = [leftEyeInput, rightEyeInput, faceInput, faceGridInput], outputs = finalOutput)
+        return Model(inputs = imageInput, outputs = finalOutput)
