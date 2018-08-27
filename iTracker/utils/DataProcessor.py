@@ -353,11 +353,12 @@ class DataPreProcessor(Sequence):
         def getInputImages(self, imagePaths):
                 #Desired size of images after processing
                 desiredImageSize = 227
+                eyeImageSize = 95
 
                 #Creating numpy arrays to store images
                 faceImages = np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3))
-                leftEyeImages =  np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3)) 
-                rightEyeImages =  np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3))
+                leftEyeImages =  np.zeros((len(imagePaths), eyeImageSize, eyeImageSize, 3)) 
+                rightEyeImages =  np.zeros((len(imagePaths), eyeImageSize, eyeImageSize, 3))
                 
                 #Iterate over all imagePaths to retrieve images
                 for i, frame in enumerate(imagePaths):
@@ -413,8 +414,8 @@ class DataPreProcessor(Sequence):
 
                         #Resize images to 224x224 to pass to neural network
                         faceImage = imageUtils.resize(faceImage, desiredImageSize)
-                        leftEyeImage = imageUtils.resize(leftEyeImage, desiredImageSize)
-                        rightEyeImage = imageUtils.resize(rightEyeImage, desiredImageSize)
+                        leftEyeImage = imageUtils.resize(leftEyeImage, eyeImageSize)
+                        rightEyeImage = imageUtils.resize(rightEyeImage, eyeImageSize)
 
                         #Writing process images to np array
                         faceImages[i] = faceImage

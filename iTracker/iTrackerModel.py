@@ -55,22 +55,23 @@ def createBN():
 def initializeModel():
         print("Initializing Model")
         #Defining input here
-        leftEyeInput = Input(shape=(227,227,3,))
-        rightEyeInput = Input(shape=(227,227,3,))
+        leftEyeInput = Input(shape=(95,95,3,))
+        rightEyeInput = Input(shape=(95,95,3,))
         faceInput = Input(shape=(227,227,3,))
         faceGridInput = Input(shape=(625,))
 
         #Define convolutional layers for left and right eye inputs
-        convE1 = createConvLayer(96, 11, 4)
+        convE1 = createConvLayer(96, 3, 2)
         maxPoolE1 = createMaxPool()
         BNE1 =createBN()
-        paddingE1 = createPadding(2)
-        convE2 = createConvLayer(256, 5, 1)
+        paddingE1 = createPadding(1)
+        convE2 = createConvLayer(256, 3, 1)
         maxPoolE2 = createMaxPool()
-        BNE2 =createBN()
         paddingE2 = createPadding(1)
         convE3 = createConvLayer(384, 3, 1)
-        convE4 = createConvLayer(32, 1, 1)
+        paddingE3 = createPadding(1)
+        convE4 = createConvLayer(64, 3, 1)
+        maxPoolE3 = createMaxPool()
 
         #Define convolutional layers for face input
         convF1 = createConvLayer(96, 11, 4)
@@ -82,7 +83,8 @@ def initializeModel():
         BNF2 =createBN()
         paddingF2 = createPadding(1)
         convF3 = createConvLayer(384, 3, 1)
-        convF4 = createConvLayer(32, 1, 1)
+        convF4 = createConvLayer(64, 1, 1)
+        maxPoolF3 = createMaxPool()
 
         #Define fully connected layer for left & right eye concatenation
         fullyConnectedE1 = createFullyConnected(128)
@@ -108,26 +110,28 @@ def initializeModel():
         leftDataPaddingE1 = paddingE1(leftDataBNE1)
         leftDataConvE2 = convE2(leftDataPaddingE1)
         leftDataMaxPoolE2 = maxPoolE2(leftDataConvE2)
-        leftDataBNE2= BNE2(leftDataMaxPoolE2)
-        leftDataPaddingE2 = paddingE2(leftDataBNE2)
+        leftDataPaddingE2 = paddingE2(leftDataMaxPoolE2)
         leftDataConvE3 = convE3(leftDataPaddingE2)
-        leftDataConvE4 = convE4(leftDataConvE3)
+        leftDataPaddingE3 = paddingE3(leftDataConvE3)
+        leftDataConvE4 = convE4(leftDataPaddingE3)
+        leftDataMaxPoolE3=maxPoolE3(leftDataConvE4)
         #Reshape data to feed into fully connected layer
-        leftEyeFinal = Reshape((5408,))(leftDataConvE4)
+        leftEyeFinal = Reshape((1600,))(leftDataMaxPoolE3)
 
         #Right Eye
         rightDataConvE1 = convE1(rightEyeInput)
         rightDataMaxPoolE1 = maxPoolE1(rightDataConvE1)
-        righttDataBNE1= BNE1(rightDataMaxPoolE1)
-        rightDataPaddingE1 = paddingE1(righttDataBNE1)
+        rightDataBNE1= BNE1(rightDataMaxPoolE1)
+        rightDataPaddingE1 = paddingE1(rightDataBNE1)
         rightDataConvE2 = convE2(rightDataPaddingE1)
         rightDataMaxPoolE2 = maxPoolE2(rightDataConvE2)
-        rightDataBNE2= BNE2(rightDataMaxPoolE2)
-        rightDataPaddingE2 = paddingE2(rightDataBNE2)
+        rightDataPaddingE2 = paddingE2(rightDataMaxPoolE2)
         rightDataConvE3 = convE3(rightDataPaddingE2)
-        rightDataConvE4 = convE4(rightDataConvE3)
+        rightDataPaddingE3 = paddingE3(rightDataConvE3)
+        rightDataConvE4 = convE4(rightDataPaddingE3)
+        rightDataMaxPoolE3=maxPoolE3(rightDataConvE4)
         #Reshape data to feed into fully connected layer
-        rightEyeFinal = Reshape((5408,))(rightDataConvE4)
+        rightEyeFinal = Reshape((1600,))(rightDataMaxPoolE3)
 
         #Combining left & right eye
         dataLRMerge = Concatenate(axis=1)([leftEyeFinal, rightEyeFinal])
@@ -144,8 +148,9 @@ def initializeModel():
         dataPaddingF2 = paddingF2(dataBNF2)
         dataConvF3 = convF3(dataPaddingF2)
         dataConvF4 = convF4(dataConvF3)
+        dataMaxPoolF3 = maxPoolF3(dataConvF4)
         #Reshape data to feed into fully connected layer
-        faceFinal = Reshape((5408,))(dataConvF4)
+        faceFinal = Reshape((2304,))(dataMaxPoolF3)
         dataFullyConnectedF1 = fullyConnectedF1(faceFinal)
         dataFullyConnectedF2 = fullyConnectedF2(dataFullyConnectedF1)
 
