@@ -352,7 +352,7 @@ class DataPreProcessor(Sequence):
         # Returns 4D 3 NumPy arrays containing the images (image, x, y, channel)
         def getInputImages(self, imagePaths):
                 #Desired size of images after processing
-                desiredImageSize = 227
+                desiredImageSize = 224
 
                 #Creating numpy arrays to store images
                 faceImages = np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3))

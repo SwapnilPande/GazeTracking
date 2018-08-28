@@ -1,5 +1,5 @@
 #Import necessary layers for model
-from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D
+from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D,Activation,SeparableConv2D,AveragePooling2D,Flatten
 #Import initializers for weights and biases
 from keras.initializers import Zeros, RandomNormal
 from keras.models import Model
@@ -19,145 +19,113 @@ def randNormKernelInitializer():
 # stride - Stride taken during convolution
 #
 # Returns a Conv2D object describing the new layer
-def createConvLayer(filters, kernelSize, stride):
+def createCv(input, filters, kernelSize, stride,padding='valid'):
         return Conv2D(
                 filters,
                 kernelSize, 
                 strides = stride,
-                activation = 'relu',
+                activation = None,
                 use_bias = True,
                 kernel_initializer = randNormKernelInitializer(),
-                bias_initializer = 'zeros'
-                )
-
+                bias_initializer = 'zeros',
+                padding=padding
+                )(input)
+def createDw(input,filters, kernelSize, stride,padding ='valid'):
+        return SeparableConv2D(
+                filters,
+                kernelSize, 
+                strides = stride,
+                activation = None,
+                use_bias = True,
+                kernel_initializer = randNormKernelInitializer(),
+                bias_initializer = 'zeros',
+                padding =padding
+                )(input)
 # createMaxPool
 # Function to simplify the process of creating a MaxPooling layer
 # Populates parameters that are common for all maxpool layers in net
 # Returns a MaxPooling2D object describing the new layer
-def createMaxPool():
-        return MaxPooling2D(pool_size = 3, strides = 2)
+def createMaxPool(input):
+        return MaxPooling2D(pool_size = 3, strides = 2)(input)
 
-def createPadding(pad):
-        return ZeroPadding2D(padding=pad)
+def createAvePool(input,pool_size,stride):
+        return AveragePooling2D(pool_size = pool_size, strides = stride)(input)
+
+def createPadding(input,pad):
+        return ZeroPadding2D(padding=pad)(input)
 
 
-def createFullyConnected(units, activation = 'relu'):
+def createFullyConnected(input,units, activation = 'relu'):
         return Dense(
                 units,
                 activation = activation,
                 use_bias = True,
                 kernel_initializer = randNormKernelInitializer(),
                 bias_initializer = 'zeros'
-                )
-def createBN():
-        return  BatchNormalization()
+                )(input)
+def createBN(input):
+        return  BatchNormalization()(input)
+def createActivation(input,activation ='relu'):
+        return Activation(activation)(input)
+
+def createDS(input,filter1,kernelSize1,stride1,padding1,filter2,kernelSize2,stride2,padding2):
+        output1 = createDw(input,filter1,kernelSize1,stride1,padding1)
+        output2 = createBN(output1)
+        output3 = createActivation(output2)
+        output4 = createCv(output3,filter2,kernelSize2,stride2,padding2)
+        output5 = createBN(output4)
+        output6 = createActivation(output5)
+        return output6
+
+def createEyeModel(input):
+        ## standard ConV+BN+activation
+        E1 = createCv(input,32,3,2,padding='same')
+        E2 = createBN(E1)
+        E3 = createActivation(E2)
+        ## depthwise separable Conv
+        E4  = createDS(E3,32,3,1,'same',64,1,1,'valid')
+        E5  = createDS(E4,64,3,2,'same',128,1,1,'valid')
+        E6  = createDS(E5,128,3,1,'same',128,1,1,'valid')
+        E7  = createDS(E6,128,3,2,'same',256,1,1,'valid')
+        E8  = createDS(E7,256,3,1,'same',256,1,1,'valid')
+        E9  = createDS(E8,256,3,2,'same',512,1,1,'valid')
+        E10 = createDS(E9,512,3,1,'same',512,1,1,'valid')
+        E11 = createDS(E10,512,3,1,'same',512,1,1,'valid')
+        E12 = createDS(E11,512,3,1,'same',512,1,1,'valid')
+        E13 = createDS(E12,512,3,1,'same',512,1,1,'valid')
+        E14 = createDS(E13,512,3,1,'same',512,1,1,'valid')
+        E15 = createDS(E10,512,3,2,'same',1024,1,1,'valid')
+        E16 = createDS(E15,1024,3,1,'same',1024,1,1,'valid')
+
+        ##average pool and FC
+        E17 = createAvePool(E16,7,1)
+        E18 = Flatten()(E17)
+        E19 = createFullyConnected(E18,256)
+
+        return E19
+        
+def createFaceGridModel(input):
+        FG1 = createFullyConnected(input, 256)
+        FG2 = createFullyConnected(FG1, 256)
+        return FG2
 
 def initializeModel():
         print("Initializing Model")
         #Defining input here
-        leftEyeInput = Input(shape=(227,227,3,))
-        rightEyeInput = Input(shape=(227,227,3,))
-        faceInput = Input(shape=(227,227,3,))
+        leftEyeInput = Input(shape=(224,224,3,))
+        rightEyeInput = Input(shape=(224,224,3,))
+        faceInput = Input(shape=(224,224,3,))
         faceGridInput = Input(shape=(625,))
 
-        #Define convolutional layers for left and right eye inputs
-        convE1 = createConvLayer(96, 11, 4)
-        maxPoolE1 = createMaxPool()
-        BNE1 =createBN()
-        paddingE1 = createPadding(2)
-        convE2 = createConvLayer(256, 5, 1)
-        maxPoolE2 = createMaxPool()
-        BNE2 =createBN()
-        paddingE2 = createPadding(1)
-        convE3 = createConvLayer(384, 3, 1)
-        convE4 = createConvLayer(64, 1, 1)
-
-        #Define convolutional layers for face input
-        convF1 = createConvLayer(96, 11, 4)
-        maxPoolF1 = createMaxPool()
-        BNF1 =createBN()
-        paddingF1 = createPadding(2)
-        convF2 = createConvLayer(256, 5, 1)
-        maxPoolF2 = createMaxPool()
-        BNF2 =createBN()
-        paddingF2 = createPadding(1)
-        convF3 = createConvLayer(384, 3, 1)
-        convF4 = createConvLayer(64, 1, 1)
-
-        #Define fully connected layer for left & right eye concatenation
-        fullyConnectedE1 = createFullyConnected(128)
-
-        #Define fully connected layers for face
-        fullyConnectedF1 = createFullyConnected(128)
-        fullyConnectedF2 = createFullyConnected(64)
-
-        #Define fully connected layers for face grid
-        fullyConnectedFG1 = createFullyConnected(256)
-        fullyConnectedFG2 = createFullyConnected(128)
-
-        #Define fully connected layers for eyes & face & face grid
-        fullyConnected1 = createFullyConnected(128)
-        fullyConnected2 = createFullyConnected(2, 'linear')
-
-
-        #Defining dataflow through layers
-        #Left Eye
-        leftDataConvE1 = convE1(leftEyeInput)
-        leftDataMaxPoolE1 = maxPoolE1(leftDataConvE1)
-        leftDataBNE1= BNE1(leftDataMaxPoolE1)
-        leftDataPaddingE1 = paddingE1(leftDataBNE1)
-        leftDataConvE2 = convE2(leftDataPaddingE1)
-        leftDataMaxPoolE2 = maxPoolE2(leftDataConvE2)
-        leftDataBNE2= BNE2(leftDataMaxPoolE2)
-        leftDataPaddingE2 = paddingE2(leftDataBNE2)
-        leftDataConvE3 = convE3(leftDataPaddingE2)
-        leftDataConvE4 = convE4(leftDataConvE3)
-        #Reshape data to feed into fully connected layer
-        leftEyeFinal = Reshape((10816,))(leftDataConvE4)
-
-        #Right Eye
-        rightDataConvE1 = convE1(rightEyeInput)
-        rightDataMaxPoolE1 = maxPoolE1(rightDataConvE1)
-        righttDataBNE1= BNE1(rightDataMaxPoolE1)
-        rightDataPaddingE1 = paddingE1(righttDataBNE1)
-        rightDataConvE2 = convE2(rightDataPaddingE1)
-        rightDataMaxPoolE2 = maxPoolE2(rightDataConvE2)
-        rightDataBNE2= BNE2(rightDataMaxPoolE2)
-        rightDataPaddingE2 = paddingE2(rightDataBNE2)
-        rightDataConvE3 = convE3(rightDataPaddingE2)
-        rightDataConvE4 = convE4(rightDataConvE3)
-        #Reshape data to feed into fully connected layer
-        rightEyeFinal = Reshape((10816,))(rightDataConvE4)
-
-        #Combining left & right eye
-        dataLRMerge = Concatenate(axis=1)([leftEyeFinal, rightEyeFinal])
-        dataFullyConnectedE1 = fullyConnectedE1(dataLRMerge)
-
-        #Face
-        dataConvF1 = convF1(faceInput)
-        dataMaxPoolF1 = maxPoolF1(dataConvF1)
-        dataBNF1= BNF1(dataMaxPoolF1)
-        dataPaddingF1 = paddingF1(dataBNF1)
-        dataConvF2 = convF2(dataPaddingF1)
-        dataMaxPoolF2 = maxPoolF2(dataConvF2)
-        dataBNF2= BNF2(dataMaxPoolF2)
-        dataPaddingF2 = paddingF2(dataBNF2)
-        dataConvF3 = convF3(dataPaddingF2)
-        dataConvF4 = convF4(dataConvF3)
-        #Reshape data to feed into fully connected layer
-        faceFinal = Reshape((10816,))(dataConvF4)
-        dataFullyConnectedF1 = fullyConnectedF1(faceFinal)
-        dataFullyConnectedF2 = fullyConnectedF2(dataFullyConnectedF1)
-
-
-        #Face grid
-        dataFullyConnectedFG1 = fullyConnectedFG1(faceGridInput)
-        dataFullyConnectedFG2 = fullyConnectedFG2(dataFullyConnectedFG1)
-
-        #Combining Eyes & Face & Face Grid
-        finalMerge = Concatenate(axis=1)([dataFullyConnectedE1, dataFullyConnectedF2, dataFullyConnectedFG2])
-        dataFullyConnected1 = fullyConnected1(finalMerge)
-        finalOutput = fullyConnected2(dataFullyConnected1)
+        leftEyeData  = createEyeModel(leftEyeInput)
+        rightEyeData = createEyeModel(rightEyeInput)
+        faceData     = createEyeModel(faceInput)
+        faceGridData = createFaceGridModel(faceGridInput)
+        
+        #Combining left & right eye face and faceGrid
+        dataLRMerge = Concatenate(axis=1)([leftEyeData, rightEyeData,faceData,faceGridData])
+        dataFc1 = createFullyConnected(dataLRMerge,128)
+        finalOutput = createFullyConnected(dataFc1,2,activation = 'linear')
 
 
         #Return the fully constructed model
