@@ -220,8 +220,8 @@ def initializeModel():
 
         LE82 = EAvePool(LE27)
         LE83 = Flatten()(LE82)
-        LE84 = EFC1(LE83)
-        LE85 = EFC2(LE84)
+#        LE84 = EFC1(LE83)
+#        LE85 = EFC2(LE84)
         ## right eye
         
         RE1 = ECV1(rightEyeInput)
@@ -258,10 +258,13 @@ def initializeModel():
 
         RE82 = EAvePool(RE27)
         RE83 = Flatten()(RE82)
-        RE84 = EFC1(RE83)
-        RE85 = EFC2(RE84)
+#        RE84 = EFC1(RE83)
+#        RE85 = EFC2(RE84)
+        EyeMerge = Concatenate(axis =1)([LE83,RE83])
+        EyeFC1 = EFC1(EyeMerge)
+        EyeFC2 = EFC2(EyeFC1)
 
-
+        
         ## face
         
         FC1 = FCV1(faceInput)
@@ -313,7 +316,7 @@ def initializeModel():
         FG2 = FGFC2(FG1)
         
         #Combining left & right eye face and faceGrid
-        dataLRMerge = Concatenate(axis=1)([LE84,RE84,FC84,FG2])
+        dataLRMerge = Concatenate(axis=1)([EyeFC2,FC84,FG2])
         dataFc1 = createFullyConnected(128)(dataLRMerge)
         finalOutput = createFullyConnected(2,activation = 'linear')(dataFc1)
 
