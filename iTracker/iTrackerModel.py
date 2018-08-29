@@ -141,6 +141,7 @@ def initializeModel():
 
         ReluActivation = createActivation()
         EAvePool = createAvePool(7,1)
+        EMaxPool = createMaxPool()
         EFC1 = createFullyConnected(256)
         EFC2 = createFullyConnected(128)
 
@@ -176,6 +177,7 @@ def initializeModel():
 
        # ReluActivation = createActivation()
         FAvePool = createAvePool(7,1)
+        FMaxPool = createMaxPool()
         FFC1 = createFullyConnected(256)
         FFC2 = createFullyConnected(128)
 
@@ -218,7 +220,7 @@ def initializeModel():
         LE26 = EBN9(LE25)
         LE27 = ReluActivation(LE26)
 
-        LE82 = EAvePool(LE27)
+        LE82 = EMaxPool(LE27)
         LE83 = Flatten()(LE82)
 #        LE84 = EFC1(LE83)
 #        LE85 = EFC2(LE84)
@@ -256,7 +258,7 @@ def initializeModel():
         RE26 = EBN9(RE25)
         RE27 = ReluActivation(RE26)
 
-        RE82 = EAvePool(RE27)
+        RE82 = EMaxPool(RE27)
         RE83 = Flatten()(RE82)
 #        RE84 = EFC1(RE83)
 #        RE85 = EFC2(RE84)
@@ -306,7 +308,7 @@ def initializeModel():
         FC32 = FBN11(FC31)
         FC33 = ReluActivation(FC32)
 
-        FC82 = FAvePool(FC33)
+        FC82 = FMaxPool(FC33)
         FC83 = Flatten()(FC82)
         FC84 = FFC1(FC83)
         FC85 = FFC2(FC84)
