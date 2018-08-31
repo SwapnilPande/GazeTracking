@@ -436,7 +436,7 @@ class DataPreProcessor(Sequence):
         # Returns 4D 3 NumPy arrays containing the images (image, x, y, channel)
         def getInputFullImages(self, imagePaths):
                 #Desired size of images after processing
-                desiredImageSize = 323
+                desiredImageSize = 320
 
                 #Creating numpy arrays to store images
                 FullImages = np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3))
