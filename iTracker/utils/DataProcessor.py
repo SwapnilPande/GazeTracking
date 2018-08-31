@@ -221,21 +221,22 @@ class DataPreProcessor(Sequence):
                 pbar = createProgressBar()
                 frameNum = 0
                 for subject in pbar(subjectDirs):
-                        subjectPath = path + "/" + subject
+                        subjectPath = path + "/" + subject 
+                        subjectPathCusSeg = path + "/" + subject +'/custom_segmentation'
                         #Stores the name of the frame files in the frames dir
                         frameNames = self.getFramesJSON(subjectPath)
                         #Collecting metadata about face, eyes, facegrid, labels
-                        face = self.getFaceJSON(subjectPath)
-                        leftEye, rightEye = self.getEyesJSON(subjectPath)
-                        faceGrid = self.getFaceGridJSON(subjectPath)
-                        dotInfo = self.getDotJSON(subjectPath)
+                        face = self.getFaceJSON(subjectPathCusSeg)
+                        leftEye, rightEye = self.getEyesJSON(subjectPathCusSeg)
+                        faceGrid = self.getFaceGridJSON(subjectPathCusSeg)
+                        dotInfo = self.getDotJSON(subjectPathCusSeg)
 
                         #Iterate over frames for the current subject
                         for i, (frame, fv, lv, rv, fgv) in enumerate(zip(frameNames,
-                                                                face['IsValid'],
-                                                                leftEye['IsValid'],
-                                                                rightEye['IsValid'],
-                                                                faceGrid['IsValid'])):
+                                                                face['isValid'],
+                                                                leftEye['isValid'],
+                                                                rightEye['isValid'],
+                                                                faceGrid['isValid'])):
                                 #Check if cur frame is valid
                                 if(fv*lv*rv*fgv == 1):
                                         #Generate path for frame
@@ -375,14 +376,14 @@ class DataPreProcessor(Sequence):
                         #JSON file specifies position eye relative to face
                         #Therefore, we must transform to make coordinates
                         #Relative to picture by adding coordinates of face
-                        xLeft = int(self.metadata[frame]['leftEye']['X']) + xFace
-                        yLeft = int(self.metadata[frame]['leftEye']['Y']) + yFace
+                        xLeft = int(self.metadata[frame]['leftEye']['X'])# + xFace
+                        yLeft = int(self.metadata[frame]['leftEye']['Y'])# + yFace
                         wLeft = int(self.metadata[frame]['leftEye']['W'])
                         hLeft = int(self.metadata[frame]['leftEye']['H'])
 
                         #Right Eye
-                        xRight = int(self.metadata[frame]['rightEye']['X']) + xFace
-                        yRight = int(self.metadata[frame]['rightEye']['Y']) + yFace
+                        xRight = int(self.metadata[frame]['rightEye']['X'])# + xFace
+                        yRight = int(self.metadata[frame]['rightEye']['Y'])# + yFace
                         wRight = int(self.metadata[frame]['rightEye']['W'])
                         hRight = int(self.metadata[frame]['rightEye']['H'])
                         #Bound checking - ensure x & y are >= 0
@@ -412,9 +413,15 @@ class DataPreProcessor(Sequence):
                         rightEyeImage = imageUtils.crop(image, xRight, yRight, wRight, hRight)
 
                         #Resize images to 224x224 to pass to neural network
-                        faceImage = imageUtils.resize(faceImage, desiredImageSize)
-                        leftEyeImage = imageUtils.resize(leftEyeImage, desiredImageSize)
-                        rightEyeImage = imageUtils.resize(rightEyeImage, desiredImageSize)
+                        try:
+                                faceImage = imageUtils.resize(faceImage, desiredImageSize)
+                                leftEyeImage = imageUtils.resize(leftEyeImage, desiredImageSize)
+                                rightEyeImage = imageUtils.resize(rightEyeImage, desiredImageSize)
+                        except:
+                                print('ASSERTION ERROR')
+                                print(frame)
+                                print(self.metadata[frame])
+                                raise
 
                         #Writing process images to np array
                         faceImages[i] = faceImage
