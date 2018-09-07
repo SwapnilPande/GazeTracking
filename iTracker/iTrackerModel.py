@@ -46,8 +46,8 @@ def createDw(input,filters, kernelSize, stride,depth_multiplier=1,padding ='same
 # Function to simplify the process of creating a MaxPooling layer
 # Populates parameters that are common for all maxpool layers in net
 # Returns a MaxPooling2D object describing the new layer
-def createMaxPool(input):
-        return MaxPooling2D(pool_size = 3, strides = 2)(input)
+def createMaxPool(input,size =3):
+        return MaxPooling2D(pool_size = size, strides = 2)(input)
 
 def createAvePool(input, pool_size,stride):
         return AveragePooling2D(pool_size = pool_size, strides = stride)(input)
@@ -78,23 +78,23 @@ def createDS(input,filter,kernelSize,stride,depth_multiplier,padding):
 
 def createEyeModel(input):
         ## standard ConV+BN+activation
-        E1 = createCv(input,128,11,4,padding='same')
+        E1 = createCv(input,64,5,1,padding='same')    #3@60x60 -->> 64@60x60
         E2 = createBN(E1)
         E3 = createActivation(E2)
-        E4 = createMaxPool(E3)
+        E4 = createMaxPool(E3,2)                      #64@60x60 -->> 64@30x30
         ## depthwise separable Conv
-        E5  = createDS(E4,128,5,1,2,'same')
-        E6 = createMaxPool(E5)
-        E7  = createDS(E6,256,3,2,2,'same')
-        E8  = createDS(E7,512,3,1,1,'same')
-        E9  = createMaxPool(E8)
+        E5  = createDS(E4,128,5,1,1,'same')           #64@30x30 -->>  128@30x30
+        E6 = createMaxPool(E5,2)                      #128@30x30 -->> 128@15x15
+        E7  = createDS(E6,256,3,1,1,'same')          # 128@15x15 -->> 256@15x15
+#        E8  = createDS(E7,512,3,1,1,'same')
+        E9  = createMaxPool(E7,3)                    #256@15x15 -->>256@7x7
         E10 = Flatten()(E9)
         
         return E10
         
 def createFaceModel(input):
         ## standard ConV+BN+activation
-        F1 = createCv(input,128,11,4,padding='same')
+        F1 = createCv(input,128,5,4,padding='same')
         F2 = createBN(F1)
         F3 = createActivation(F2)
         F4 = createMaxPool(F3)
@@ -119,8 +119,8 @@ def initializeModel():
         
         print("Initializing Model")
         #Defining input here
-        leftEyeInput = Input(shape=(224,224,3,))
-        rightEyeInput = Input(shape=(224,224,3,))
+        leftEyeInput = Input(shape=(60,60,3,))
+        rightEyeInput = Input(shape=(60,60,3,))
         faceInput = Input(shape=(224,224,3,))
         faceGridInput = Input(shape=(625,))
 

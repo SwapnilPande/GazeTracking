@@ -354,11 +354,12 @@ class DataPreProcessor(Sequence):
         def getInputImages(self, imagePaths):
                 #Desired size of images after processing
                 desiredImageSize = 224
+                desiredEyeImageSize = 60
 
                 #Creating numpy arrays to store images
                 faceImages = np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3))
-                leftEyeImages =  np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3)) 
-                rightEyeImages =  np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3))
+                leftEyeImages =  np.zeros((len(imagePaths), desiredEyeImageSize,desiredEyeImageSize , 3)) 
+                rightEyeImages =  np.zeros((len(imagePaths), desiredEyeImageSize, desiredEyeImageSize, 3))
                 
                 #Iterate over all imagePaths to retrieve images
                 for i, frame in enumerate(imagePaths):
@@ -415,8 +416,8 @@ class DataPreProcessor(Sequence):
                         #Resize images to 224x224 to pass to neural network
                         try:
                                 faceImage = imageUtils.resize(faceImage, desiredImageSize)
-                                leftEyeImage = imageUtils.resize(leftEyeImage, desiredImageSize)
-                                rightEyeImage = imageUtils.resize(rightEyeImage, desiredImageSize)
+                                leftEyeImage = imageUtils.resize(leftEyeImage, desiredEyeImageSize)
+                                rightEyeImage = imageUtils.resize(rightEyeImage, desiredEyeImageSize)
                         except:
                                 print('ASSERTION ERROR')
                                 print(frame)
@@ -434,7 +435,83 @@ class DataPreProcessor(Sequence):
                 rightEyeImages = imageUtils.normalize(rightEyeImages, 255)
 
                 return faceImages, leftEyeImages, rightEyeImages
+        
+        # getEyeGrids
+        # Extract the faceGrid information from JSON to numpy array
+        # Arguments:
+        # imagePath - List of the paths of the images to retrieve
+        # Returns a 2D NumPy array containing the faceGrid (framesx625)
+        def getEyeGrids(self, imagePaths):
+                #Size of the facegrid output
+                faceGridSize = 6400  #80x80
 
+                faceGrids = np.zeros((len(imagePaths), faceGridSize))
+                for frameNum, frame in enumerate(imagePaths):
+                        #Retrieve necessary values
+                        Lx =int(  self.metadata[frame]['leftEye']['X']/8)
+                        Ly = int(  self.metadata[frame]['leftEye']['Y']/8)
+                        Lw =int(  self.metadata[frame]['leftEye']['W']/8)
+                        Lh = int(  self.metadata[frame]['leftEye']['H']/8)
+
+                        #Retrieve necessary values
+                        Rx = int(  self.metadata[frame]['rightEye']['X']/8)
+                        Ry =  int(  self.metadata[frame]['rightEye']['Y']/8)
+                        Rw =  int(  self.metadata[frame]['rightEye']['W']/8)
+                        Rh = int(  self.metadata[frame]['rightEye']['H']/8)
+
+                        
+                        image = self.getImage(frame) 
+                        if(image.shape[0]>image.shape[1]): 
+                                Ly =Ly +10
+                                Ry =Ry +10
+                        else: 
+                                Lx =Lx+10
+                                Rx = Rx+10
+ 
+                        
+                        #Create 5x5 array of zeros
+                        faceGrid = np.zeros((80, 80))
+
+                        #Write 1 in the FaceGrid for location of face
+                        #Subtracting 1 in range because facegrid is 1 indexed
+                        xBound = Lx-1+Lw
+                        yBound = Ly-1+Lh
+
+                        if(Lx < 0): #Flooring x & y to zero
+                                Lx = 0 
+                        if(Ly < 0):
+                                Ly = 0
+                        if(xBound >80: #Capping maximum value of x & y to 25
+                                xBound = 80
+                        if(yBound > 80
+                                yBound = 80
+
+                        for i in range(Lx-1,xBound):
+                                for j in range(Ly-1,yBound):
+                                        faceGrid[j][i] = 1
+                                                      
+                           
+                        xBound = Rx-1+Rw
+                        yBound = Ry-1+Rh
+
+                        if(Rx < 0): #Flooring x & y to zero
+                                Rx = 0 
+                        if(Ry < 0):
+                                Ry = 0
+                        if(xBound >80: #Capping maximum value of x & y to 25
+                                xBound = 80
+                        if(yBound > 80
+                                yBound = 80
+
+                        for i in range(Rx-1,xBound):
+                                for j in range(Ry-1,yBound):
+                                        faceGrid[j][i] = 1
+                        #Reshapre facegird from 25x25 to 625x1
+                        faceGrid = np.reshape(faceGrid, faceGridSize)
+                        faceGrids[frameNum] = faceGrid
+
+                return faceGrids
+        
         # getFaceGrids
         # Extract the faceGrid information from JSON to numpy array
         # Arguments:
