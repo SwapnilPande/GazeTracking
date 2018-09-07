@@ -222,7 +222,7 @@ class DataPreProcessor(Sequence):
                 frameNum = 0
                 for subject in pbar(subjectDirs):
                         subjectPath = path + "/" + subject 
-                        subjectPathCusSeg = path + "/" + subject +'/custom_segmentation'
+                        subjectPathCusSeg = path + "/" + subject +'/custom_confidence'
                         #Stores the name of the frame files in the frames dir
                         frameNames = self.getFramesJSON(subjectPath)
                         #Collecting metadata about face, eyes, facegrid, labels
@@ -233,10 +233,10 @@ class DataPreProcessor(Sequence):
 
                         #Iterate over frames for the current subject
                         for i, (frame, fv, lv, rv, fgv) in enumerate(zip(frameNames,
-                                                                face['isValid'],
-                                                                leftEye['isValid'],
-                                                                rightEye['isValid'],
-                                                                faceGrid['isValid'])):
+                                                                face['IsValid'],
+                                                                leftEye['IsValid'],
+                                                                rightEye['IsValid'],
+                                                                faceGrid['IsValid'])):
                                 #Check if cur frame is valid
                                 if(fv*lv*rv*fgv == 1):
                                         #Generate path for frame
