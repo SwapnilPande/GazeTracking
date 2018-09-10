@@ -76,7 +76,7 @@ def createDS(input,filter,kernelSize,stride,depth_multiplier,padding):
         return output3
 
 
-def createEyeModel(input):
+def createSmallEyeModel(input):
         ## standard ConV+BN+activation
         E1 = createCv(input,64,5,1,padding='same')    #3@60x60 -->> 64@60x60
         E2 = createBN(E1)
@@ -91,6 +91,20 @@ def createEyeModel(input):
         E10 = Flatten()(E9)
         
         return E10
+def createEyeModel(input):
+        ## standard ConV+BN+activation
+        F1 = createCv(input,128,5,4,padding='same')  #3@224x224 -->> 128@56x56
+        F2 = createBN(F1)
+        F3 = createActivation(F2)
+        F4 = createMaxPool(F3)                       # 128@56x56  -->> 128@27x27
+        ## depthwise separable Conv
+        F5  = createDS(F4,128,5,1,1,'same')          #128@27x27  -->> 128@27x27
+        F6 = createMaxPool(F5)                       #128@27x27  -->> 128@13x13
+        F7  = createDS(F6,256,3,2,1,'same')          #128@13x13  -->>  256@7x7
+        F8  = createDS(F7,512,3,1,1,'same')          #256@7x7  -->> 512@7x7 
+        F9  = createMaxPool(F8)                      #512@7x7  -->> 512@3x3
+        F10 = Flatten()(F9)
+        return F10
         
 def createFaceModel(input):
         ## standard ConV+BN+activation
@@ -99,9 +113,9 @@ def createFaceModel(input):
         F3 = createActivation(F2)
         F4 = createMaxPool(F3)
         ## depthwise separable Conv
-        F5  = createDS(F4,128,5,1,2,'same')
+        F5  = createDS(F4,128,5,1,1,'same')
         F6 = createMaxPool(F5)
-        F7  = createDS(F6,256,3,2,2,'same')
+        F7  = createDS(F6,256,3,2,1,'same')
         F8  = createDS(F7,512,3,1,1,'same')
         F9  = createMaxPool(F8)
         F10 = Flatten()(F9)
@@ -115,30 +129,38 @@ def createFaceGridModel(input):
         FG1 = createFullyConnected(input, 256)
         FG2 = createFullyConnected(FG1, 256)
         return FG2
+
+def createEyeLocationModel(input):
+        EL1 = createFullyConnected(input,512)
+        EL2 = createFullyConnected(EL1, 256)
+        return EL2
+
 def initializeModel():
         
         print("Initializing Model")
         #Defining input here
-        leftEyeInput = Input(shape=(60,60,3,))
-        rightEyeInput = Input(shape=(60,60,3,))
+        leftEyeInput = Input(shape=(224,224,3,))
+        rightEyeInput = Input(shape=(224,224,3,))
         faceInput = Input(shape=(224,224,3,))
-        faceGridInput = Input(shape=(6400,))
-
+#        faceGridInput = Input(shape=(6400,))
+        EyeLocationInput = Input(shape=(8,))
+        
         ### eye models
         leftEyeData = createEyeModel(leftEyeInput)
         rightEyeData= createEyeModel(rightEyeInput)
         faceData = createFaceModel(faceInput)
-        faceGridData=createFaceGridModel(faceGridInput)
-
+#        faceGridData=createFaceGridModel(faceGridInput)
+        eyeLocationData = createEyeLocationModel(EyeLocationInput)
+        
         EyeMerge =  Concatenate(axis=1)([leftEyeData,rightEyeData])
         EyeFc1  = createFullyConnected(EyeMerge,128)
 
         
         #Combining left & right eye face and faceGrid
-        dataLRMerge = Concatenate(axis=1)([EyeFc1,faceData,faceGridData])
+        dataLRMerge = Concatenate(axis=1)([EyeFc1,faceData,eyeLocationData])
         dataFc1 = createFullyConnected(dataLRMerge,128)
         finalOutput = createFullyConnected(dataFc1,2,activation = 'linear')
 
 
         #Return the fully constructed model
-        return Model(inputs = [leftEyeInput, rightEyeInput, faceInput, faceGridInput], outputs = finalOutput)
+        return Model(inputs = [leftEyeInput, rightEyeInput, faceInput, EyeLocationInput], outputs = finalOutput)

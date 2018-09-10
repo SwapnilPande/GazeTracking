@@ -354,7 +354,7 @@ class DataPreProcessor(Sequence):
         def getInputImages(self, imagePaths):
                 #Desired size of images after processing
                 desiredImageSize = 224
-                desiredEyeImageSize = 60
+                desiredEyeImageSize = 224
 
                 #Creating numpy arrays to store images
                 faceImages = np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3))
@@ -435,6 +435,45 @@ class DataPreProcessor(Sequence):
                 rightEyeImages = imageUtils.normalize(rightEyeImages, 255)
 
                 return faceImages, leftEyeImages, rightEyeImages
+        #getEyeLocationInfo
+
+        def getEyeLocations(self,imagePaths):
+                EyeInfoSize = 8
+                EyeInfos =np.zeros((len(imagePaths), EyeInfoSize))
+
+                for frameNum, frame in enumerate(imagePaths):
+                        EyeInfo = np.zeros(EyeInfoSize)
+                        
+                        Lx =int(  self.metadata[frame]['leftEye']['X'])
+                        Ly = int(  self.metadata[frame]['leftEye']['Y'])
+                        Lw =int(  self.metadata[frame]['leftEye']['W'])
+                        Lh = int(  self.metadata[frame]['leftEye']['H'])
+
+                        #Retrieve necessary values
+                        Rx = int(  self.metadata[frame]['rightEye']['X'])
+                        Ry =  int(  self.metadata[frame]['rightEye']['Y'])
+                        Rw =  int(  self.metadata[frame]['rightEye']['W'])
+                        Rh = int(  self.metadata[frame]['rightEye']['H'])
+
+                        
+                        image = self.getImage(frame) 
+                        if(image.shape[0]>image.shape[1]): 
+                                Ly =Ly +80
+                                Ry =Ry +80
+                        else: 
+                                Lx =Lx+80
+                                Rx = Rx+80
+                        EyeInfo[0] = Lx
+                        EyeInfo[1] = Ly
+                        EyeInfo[2] = Lw
+                        EyeInfo[3] = Lh
+                        EyeInfo[4] = Rx
+                        EyeInfo[5] = Ry
+                        EyeInfo[6] = Rw
+                        EyeInfo[7] = Rh
+                        EyeInfos[frameNum]=EyeInfo
+                return EyeInfos
+
         
         # getEyeGrids
         # Extract the faceGrid information from JSON to numpy array
@@ -591,14 +630,15 @@ class DataPreProcessor(Sequence):
                         framesToRetrieve = self.frameIndex[startIndex:]
 
                 faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve)
-                faceGridBatch = self.getEyeGrids(framesToRetrieve)
+                eyeInfoBatch = self.getEyeLocations(framesToRetrieve)
+#                faceGridBatch = self.getEyeGrids(framesToRetrieve)
                 labelsBatch = self.getLabels(framesToRetrieve)
                 if(not self.debug):
                         return {
                                                 'input_3' : faceBatch, 
                                                 'input_1' : leftEyeBatch, 
                                                 'input_2' : rightEyeBatch, 
-                                                'input_4' : faceGridBatch
+                                                'input_4' : eyeInfoBatch
                                         }, labelsBatch#, metaBatch
                 else:
                         metaBatch = np.array(framesToRetrieve)
@@ -606,7 +646,7 @@ class DataPreProcessor(Sequence):
                                                 'input_3' : faceBatch, 
                                                 'input_1' : leftEyeBatch, 
                                                 'input_2' : rightEyeBatch, 
-                                                'input_4' : faceGridBatch
+                                                'input_4' : eyeInfoBatch
                                         }, labelsBatch, metaBatch
 
 
