@@ -230,15 +230,17 @@ class DataPreProcessor(Sequence):
                         leftEye, rightEye = self.getEyesJSON(subjectPathCusSeg)
                         faceGrid = self.getFaceGridJSON(subjectPathCusSeg)
                         dotInfo = self.getDotJSON(subjectPathCusSeg)
+                        markers = self.getPoseJSON(subjectPathCusSeg)
 
                         #Iterate over frames for the current subject
-                        for i, (frame, fv, lv, rv, fgv) in enumerate(zip(frameNames,
+                        for i, (frame, fv, lv, rv, fgv,marker) in enumerate(zip(frameNames,
                                                                 face['IsValid'],
                                                                 leftEye['IsValid'],
                                                                 rightEye['IsValid'],
-                                                                faceGrid['IsValid'])):
+                                                                faceGrid['IsValid'],
+                                                                markers)):
                                 #Check if cur frame is valid
-                                if(fv*lv*rv*fgv == 1):
+                                if(fv*lv*rv*fgv == 1) and marker !=[]:
                                         #Generate path for frame
                                         framePath = subjectPath + "/frames/" + frame
                                         #Write file path to index
@@ -249,6 +251,7 @@ class DataPreProcessor(Sequence):
                                                         'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
                                                         'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
                                                         'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
+                                                        'marker': marker,
                                                         'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
                                                 }
                                         else:
@@ -260,6 +263,7 @@ class DataPreProcessor(Sequence):
                                                         'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
                                                         'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
                                                         'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
+                                                        'marker': marker,
                                                         'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
                                                 }
                                         #Build the dictionary containing the metadata for a frame
@@ -270,6 +274,22 @@ class DataPreProcessor(Sequence):
                 else:
                         return frameIndex, metadata
 
+        # get PoseJSON
+        # Loads pose.json to dictionary
+        # this file contains the face markers
+        # Arguments:
+        # subjectPath - Path to unzipped root directory of the subject
+        # Files that are read in:
+        # pose.json
+        # Returns dictionary objects containing the ingested JSON object
+        def getPoseJSON(self,subjectPath):
+                with open(subjectPath + '/pose.json') as f:
+                        pose = json.load(f)
+                if 'Markers5' in pose.keys():
+                
+                        return pose['Markers5']
+                else:
+                        return []
         # getFramesJSON
         # Loads frames.json to a dictionary
         # this file contains the names fo the frames in the directory
@@ -435,6 +455,32 @@ class DataPreProcessor(Sequence):
                 rightEyeImages = imageUtils.normalize(rightEyeImages, 255)
 
                 return faceImages, leftEyeImages, rightEyeImages
+
+        # getMarkers
+
+        def getMarkers(self,imagePaths):
+                MarkerSize = 10 # 5 points
+                Markers=np.zeros((len(imagePaths), MarkerSize))
+                for frameNum, frame in enumerate(imagePaths):
+                        marker = np.reshape(self.metadata[frame]['marker'],(-1,))
+                        image = self.getImage(frame) 
+                        if(image.shape[0]>image.shape[1]):
+                                marker[1]=marker[1]+80
+                                marker[3]=marker[3]+80
+                                marker[5]=marker[5]+80
+                                marker[7]=marker[7]+80
+                                marker[9]=marker[9]+80
+                        else:
+                                marker[0]=marker[0]+80
+                                marker[2]=marker[2]+80
+                                marker[4]=marker[4]+80
+                                marker[6]=marker[6]+80
+                                marker[8]=marker[8]+80
+                        Markers[frameNum]=marker
+                return Markers
+                
+                
+
         #getEyeLocationInfo
 
         def getEyeLocations(self,imagePaths):
@@ -443,6 +489,7 @@ class DataPreProcessor(Sequence):
 
                 for frameNum, frame in enumerate(imagePaths):
                         EyeInfo = np.zeros(EyeInfoSize)
+                        
                         
                         Lx =int(  self.metadata[frame]['leftEye']['X'])
                         Ly = int(  self.metadata[frame]['leftEye']['Y'])
@@ -630,15 +677,16 @@ class DataPreProcessor(Sequence):
                         framesToRetrieve = self.frameIndex[startIndex:]
 
                 faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve)
-                eyeInfoBatch = self.getEyeLocations(framesToRetrieve)
+#                eyeInfoBatch = self.getEyeLocations(framesToRetrieve)
 #                faceGridBatch = self.getEyeGrids(framesToRetrieve)
+                markerBatch = self.getMarkers(framesToRetrieve)
                 labelsBatch = self.getLabels(framesToRetrieve)
                 if(not self.debug):
                         return {
                                                 'input_3' : faceBatch, 
                                                 'input_1' : leftEyeBatch, 
                                                 'input_2' : rightEyeBatch, 
-                                                'input_4' : eyeInfoBatch
+                                                'input_4' : markerBatch
                                         }, labelsBatch#, metaBatch
                 else:
                         metaBatch = np.array(framesToRetrieve)
@@ -646,7 +694,7 @@ class DataPreProcessor(Sequence):
                                                 'input_3' : faceBatch, 
                                                 'input_1' : leftEyeBatch, 
                                                 'input_2' : rightEyeBatch, 
-                                                'input_4' : eyeInfoBatch
+                                                'input_4' : markerBatch
                                         }, labelsBatch, metaBatch
 
 

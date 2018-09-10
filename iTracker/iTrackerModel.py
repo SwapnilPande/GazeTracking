@@ -134,6 +134,10 @@ def createEyeLocationModel(input):
         EL1 = createFullyConnected(input,512)
         EL2 = createFullyConnected(EL1, 256)
         return EL2
+def createMarkerModel(input):
+        MM1 = createFullyConnected(input,512)
+        MM2 = createFullyConnected(MM1,256)
+        return MM2
 
 def initializeModel():
         
@@ -143,24 +147,25 @@ def initializeModel():
         rightEyeInput = Input(shape=(224,224,3,))
         faceInput = Input(shape=(224,224,3,))
 #        faceGridInput = Input(shape=(6400,))
-        EyeLocationInput = Input(shape=(8,))
+#        EyeLocationInput = Input(shape=(8,))
+        MarkerInput = Input(shape=(10,))
         
         ### eye models
         leftEyeData = createEyeModel(leftEyeInput)
         rightEyeData= createEyeModel(rightEyeInput)
         faceData = createFaceModel(faceInput)
 #        faceGridData=createFaceGridModel(faceGridInput)
-        eyeLocationData = createEyeLocationModel(EyeLocationInput)
+        markerData = createMarkerModel(MarkerInput)
         
         EyeMerge =  Concatenate(axis=1)([leftEyeData,rightEyeData])
         EyeFc1  = createFullyConnected(EyeMerge,128)
 
         
         #Combining left & right eye face and faceGrid
-        dataLRMerge = Concatenate(axis=1)([EyeFc1,faceData,eyeLocationData])
+        dataLRMerge = Concatenate(axis=1)([EyeFc1,faceData,markerData])
         dataFc1 = createFullyConnected(dataLRMerge,128)
         finalOutput = createFullyConnected(dataFc1,2,activation = 'linear')
 
 
         #Return the fully constructed model
-        return Model(inputs = [leftEyeInput, rightEyeInput, faceInput, EyeLocationInput], outputs = finalOutput)
+        return Model(inputs = [leftEyeInput, rightEyeInput, faceInput, MarkerInput], outputs = finalOutput)
