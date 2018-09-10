@@ -122,7 +122,7 @@ def initializeModel():
         leftEyeInput = Input(shape=(60,60,3,))
         rightEyeInput = Input(shape=(60,60,3,))
         faceInput = Input(shape=(224,224,3,))
-        faceGridInput = Input(shape=(625,))
+        faceGridInput = Input(shape=(6400,))
 
         ### eye models
         leftEyeData = createEyeModel(leftEyeInput)

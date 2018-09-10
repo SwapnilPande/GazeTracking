@@ -481,9 +481,9 @@ class DataPreProcessor(Sequence):
                                 Lx = 0 
                         if(Ly < 0):
                                 Ly = 0
-                        if(xBound >80: #Capping maximum value of x & y to 25
+                        if(xBound >80): #Capping maximum value of x & y to 25
                                 xBound = 80
-                        if(yBound > 80
+                        if(yBound > 80):
                                 yBound = 80
 
                         for i in range(Lx-1,xBound):
@@ -498,9 +498,9 @@ class DataPreProcessor(Sequence):
                                 Rx = 0 
                         if(Ry < 0):
                                 Ry = 0
-                        if(xBound >80: #Capping maximum value of x & y to 25
+                        if(xBound >80): #Capping maximum value of x & y to 25
                                 xBound = 80
-                        if(yBound > 80
+                        if(yBound > 80):
                                 yBound = 80
 
                         for i in range(Rx-1,xBound):
@@ -591,7 +591,7 @@ class DataPreProcessor(Sequence):
                         framesToRetrieve = self.frameIndex[startIndex:]
 
                 faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve)
-                faceGridBatch = self.getFaceGrids(framesToRetrieve)
+                faceGridBatch = self.getEyeGrids(framesToRetrieve)
                 labelsBatch = self.getLabels(framesToRetrieve)
                 if(not self.debug):
                         return {
