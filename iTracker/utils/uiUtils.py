@@ -1,8 +1,7 @@
 #uiUtils contains definitions for user interface utilities 
 #Abstracts these functions so that it is not needed to import libraries in each file
 
-from progressbar import ProgressBar 
-
+from progressbar import ProgressBar
 # yesNoPrompt
 # Accepts a yes or no (y/n) input from the user and returns a boolean with result
 def yesNoPrompt(useDefault, default):
@@ -192,6 +191,109 @@ class datasetUI(iTrackerUI):
 	def getOffset(self, coords):
 		return (round(self.x1 + self.xCm2Px*coords[0]),
 				round(self.y1 + -1*self.yCm2Px*coords[1]))
+
+#UI for collecting new gaze training images
+#Generates a cursor at random locations on the screen and captures images of the user looking at the cursor
+class dataCollectionUI(iTrackerUI):
+	def __init__(self, filepath, locationDuration, captureDelay):
+		#Initialize cv2
+		self.cv2 = __import__('cv2')
+		self.random = __import__('random')
+		self.datetime = __import__('datetime')
+		self.json = __import__('json')
+
+		super(dataCollectionUI, self).__init__()
+
+		#Load image for dots and cursor and scale to 100x100 pixels
+		self.filepath = filepath #Directory in which to store the new images
+
+		self.cursorSize = (100,100)
+		self.cursor = self.pygame.transform.scale(self.pygame.image.load("UI_assets/pokeball.png"), self.cursorSize)
+		self.cursorCoords = self.getRandomCoords()
+
+		#Initialize video capture to collect images from webcam
+		self.camera = self.cv2.VideoCapture(0)
+		self.imageIndex = 0 #Initialize image index to 0
+
+		#Initialize capture directory
+		curDirs = self.os.listdir(filepath)
+		maxDir = 0
+		for directory in curDirs:
+			try:
+				maxDir = max(maxDir, int(directory))
+			except ValueError:
+				pass
+		self.filepath = filepath + '/' + ('{0:05d}'.format(maxDir + 1))
+		self.os.mkdir(self.filepath)		
+
+		#Length of time cursor remains fixed at a given location
+		self.locationDuration = locationDuration
+		self.elapsedTime = 0
+		self.startTime =  self.datetime.datetime.now()
+		self.captureDelay = captureDelay
+
+		self.imagesElapsed = 0
+		
+		self.x = []
+		self.y = []
+	
+	#Capture image from frame
+	def captureImage(self):
+		retVal, frame = self.camera.read()
+		if(retVal):
+			self.cv2.imwrite(self.filepath + '/' + ('{0:05d}.jpg'.format(self.imageIndex)), frame)
+			self.imageIndex = self.imageIndex + 1
+			cmCoords = self.px2Cm(self.cursorCoords)
+			self.x.append(cmCoords[0])
+			self.y.append(cmCoords[1])
+
+	def px2Cm(self, coords):
+		return ((coords[0] + self.cursorSize[0]/2)/self.xCm2Px - self.xCameraOffsetCm,
+		-1*((coords[1] + self.cursorSize[1]/2)/self.yCm2Px - self.yCameraOffsetCm))
+
+	def getRandomCoords(self):
+		return (self.wScreenPx*self.random.random(), self.hScreenPx*self.random.random()) 
+
+	def updateUI(self):
+		print("Updating UI")
+		self.elapsedTime = self.datetime.datetime.now() - self.startTime
+		
+		#Need to generate new cursor location
+		if(self.elapsedTime.total_seconds() > self.locationDuration):
+			#Generate random cursor coords
+			self.cursorCoords = self.getRandomCoords() #Generate random location
+			#Time since image location was switched
+			self.startTime = self.datetime.datetime.now()
+			#Reset elapsed time
+			self.elapsedTime = self.startTime - self.startTime
+			#Count number of cursor locations that have been finished
+			self.imagesElapsed = self.imagesElapsed + 1
+
+		#Clears the screen to draw update
+		self.screen.fill(self.black)
+
+		#Draw cursor to screen
+		self.screen.blit(self.cursor, self.cursorCoords)
+		
+		if(self.elapsedTime.total_seconds() > self.captureDelay):
+			print("Capturing Image: " + str(self.imagesElapsed))
+			self.captureImage()
+
+		super().updateUI()
+		return self.imagesElapsed
+
+	def writeData(self):
+		with open(self.filepath + '/' + 'dotinfo.json', 'w') as fp:
+			self.json.dump(
+				{
+					'XCam' : self.x,
+					'YCam' : self.y
+				},
+				fp
+			)
+
+
+	
 
 
 
