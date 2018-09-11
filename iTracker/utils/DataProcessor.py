@@ -686,8 +686,8 @@ class DataPreProcessor(Sequence):
         def getLabels(self, imagePaths):
                 labels = np.zeros((len(imagePaths), 2))
                 for i, frame in enumerate(imagePaths):
-                        labels[i] = np.array([self.metadata[frame]['label']['XCam'],
-                                                                        self.metadata[frame]['label']['YCam']])
+                        labels[i] = np.array([self.metadata[frame]['label']['XCam']*self.metadata[frame]['scaler'],
+                                                                        self.metadata[frame]['label']['YCam']*self.metadata[frame]['scaler']])
                 return labels
 
         # generateBatch
