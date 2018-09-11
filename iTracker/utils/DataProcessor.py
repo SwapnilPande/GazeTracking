@@ -216,6 +216,9 @@ class DataPreProcessor(Sequence):
                 #Declare index lists and metadata dictionary to return
                 if(loadAllData):
                         frames = []
+                        faceImages=[]
+                        leftEyeImages=[]
+                        righEyeImages=[]
                 frameIndex = []
                 metadata = {}
                 pbar = createProgressBar()
@@ -256,6 +259,9 @@ class DataPreProcessor(Sequence):
                                                 }
                                         else:
                                                 frameIndex.append(frameNum)
+                                                image =cv2.imread(framePath)
+                                                faceImage = getCropImage(image,face['X'][i],  face['Y'][i],  face['W'][i], : face['H'][i])
+                                                leftEyeImage=getCropImage(image,
                                                 with open(framePath, 'rb') as f:
                                                         frames.append(np.fromstring(f.read(), dtype=np.uint8))
                                                 metadata[frameNum] = {
@@ -364,7 +370,10 @@ class DataPreProcessor(Sequence):
                         return cv2.imdecode(self.frames[imagePath], -1)
                 else:
                         return  cv2.imread(imagePath)
-
+        def getCropImage(self,image,x,y,w,h):
+                cropImage = imageUtils.crop(image, x, y, w, h)
+                return cv2.imencode('.jpg',cropImage)[1]
+        
         # getInputImages
         # Creates the properly formatted (cropped and scaled) images of the
         # face, left eye, and right eye
