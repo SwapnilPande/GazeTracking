@@ -135,9 +135,10 @@ def createEyeLocationModel(input):
         EL2 = createFullyConnected(EL1, 256)
         return EL2
 def createMarkerModel(input):
-        MM1 = createFullyConnected(input,512)
-        MM2 = createFullyConnected(MM1,256)
-        return MM2
+        MM1 = createFullyConnected(input,1024)
+        MM2 = createFullyConnected(MM1,512)
+        MM3 = createFullyConnected(MM2,256)
+        return MM3
 
 def initializeModel():
         
