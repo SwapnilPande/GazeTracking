@@ -216,7 +216,12 @@ class dataCollectionUI(iTrackerUI):
 		self.imageIndex = 0 #Initialize image index to 0
 
 		#Initialize capture directory
-		curDirs = self.os.listdir(filepath)
+		curDirs = []
+		try:
+			curDirs = self.os.listdir(filepath)
+		except FileNotFoundError:
+			self.os.mkdir(self.filepath)
+
 		maxDir = 0
 		for directory in curDirs:
 			try:
