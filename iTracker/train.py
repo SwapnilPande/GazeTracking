@@ -162,9 +162,9 @@ if __name__ == '__main__':
 
 
         #Initialize Data pre-processor here
-        ppTrain = DataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
-        ppValidate = DataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
-        ppTest =  DataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
+        ppTrain = DataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory,scale=True)
+        ppValidate = DataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory,scale=False)
+        ppTest =  DataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args,scale=False)
         
         #Initialize Logging Dir here
 

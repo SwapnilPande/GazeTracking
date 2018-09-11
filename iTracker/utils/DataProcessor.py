@@ -166,7 +166,7 @@ class DataPreProcessor(Sequence):
                         self.frameIndex, self.metadata, self.frames = self.indexData(self.tempDataDir, loadAllData,scale)
                         self.loadedData = True
                 else:
-                        self.frameIndex, self.metadata = self.indexData(self.tempDataDir, loadAllData)
+                        self.frameIndex, self.metadata = self.indexData(self.tempDataDir, loadAllData,scale)
 
                 #Get Number of frames
                 self.numFrames = len(self.frameIndex)
@@ -256,13 +256,13 @@ class DataPreProcessor(Sequence):
                                                         'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
                                                 }
                                         else:
-                                                frameIndex.append(frameNum)
+                                                #frameIndex.append(frameNum)
                                                 with open(framePath, 'rb') as f:
                                                         frames.append(np.fromstring(f.read(), dtype=np.uint8))
                                                 if (scale):
                                                         for j in range(4): # 5 scalers
 
-                                                                scaler = 1+np.random.random_sample([1])
+                                                                scaler = 1+np.random.random_sample([1])[0]
                                                                 subFrameNum = frameNum*5+j
                                                                 metadata[subFrameNum] = {
                                                                         'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
@@ -273,6 +273,7 @@ class DataPreProcessor(Sequence):
                                                                         'frameNum':frameNum,
                                                                         'scaler':scaler,
                                                                         'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
+                                                                        }
                                                                 frameIndex.append(subFrameNum)
                                                         metadata[frameNum*5+4] = {
                                                         'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
@@ -283,6 +284,7 @@ class DataPreProcessor(Sequence):
                                                         'frameNum':frameNum,
                                                         'scaler':1,
                                                         'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
+                                                                }
                                                         frameIndex.append(frameNum*5+4)
                                                 else:
                                                         frameIndex.append(frameNum)
@@ -467,7 +469,7 @@ class DataPreProcessor(Sequence):
                         # resize image based on scaler
                         faceImage = imageUtils.resize(faceImage, int(wFace/scaler))
                         leftEyeImage = imageUtils.resize(leftEyeImage, int(wLeft/scaler))
-                        rightEyeImage = imageUtils.resize(rightEyeImage, int(WRight/scaler))
+                        rightEyeImage = imageUtils.resize(rightEyeImage, int(wRight/scaler))
                         #Resize images to 224x224 to pass to neural network
                                                                 
                         faceImage = imageUtils.resize(faceImage, desiredImageSize)
@@ -686,8 +688,9 @@ class DataPreProcessor(Sequence):
         def getLabels(self, imagePaths):
                 labels = np.zeros((len(imagePaths), 2))
                 for i, frame in enumerate(imagePaths):
-                        labels[i] = np.array([self.metadata[frame]['label']['XCam']*self.metadata[frame]['scaler'],
-                                                                        self.metadata[frame]['label']['YCam']*self.metadata[frame]['scaler']])
+                        x = self.metadata[frame]['label']['XCam']*self.metadata[frame]['scaler']
+                        y =  self.metadata[frame]['label']['YCam']*self.metadata[frame]['scaler']
+                        labels[i] = np.array([x,y])
                 return labels
 
         # generateBatch
