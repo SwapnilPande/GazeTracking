@@ -141,7 +141,7 @@ class DataPreProcessor(Sequence):
         #                       each dictionary contains 5 keys: face, leftEye, rightEye, faceGrid, and label
         #                       each of these keys refers to a dictionary containing the necessary metadata to describe feature
         # sampledFrames - stores sets that described the data that has already been sampled in the current epoch
-        def __init__(self, pathTemp, batchSize, dataset, args, debug = False, loadAllData = False):
+        def __init__(self, pathTemp, batchSize, dataset, args, debug = False, loadAllData = False,scale =False):
                 self.args = args #Stores all command line arguments
 
                 self.loadedData = False
@@ -163,7 +163,7 @@ class DataPreProcessor(Sequence):
                 else:
                         print('Building index and collecting metadata for ' + dataset + ' dataset')
                 if(loadAllData):
-                        self.frameIndex, self.metadata, self.frames = self.indexData(self.tempDataDir, loadAllData)
+                        self.frameIndex, self.metadata, self.frames = self.indexData(self.tempDataDir, loadAllData,scale)
                         self.loadedData = True
                 else:
                         self.frameIndex, self.metadata = self.indexData(self.tempDataDir, loadAllData)
@@ -209,7 +209,7 @@ class DataPreProcessor(Sequence):
         # Returns:
         # frameIndex - A set containing the filepaths to all valid frames in the dataset
         # metadata = A dictionary containing the metadata for each frame
-        def indexData(self, path, loadAllData):
+        def indexData(self, path, loadAllData,scale):
                 #Getting unzipped subject dirs
                 subjectDirs = os.listdir(path=path)
 
@@ -220,6 +220,7 @@ class DataPreProcessor(Sequence):
                 metadata = {}
                 pbar = createProgressBar()
                 frameNum = 0
+                subFrameNum = 0
                 for subject in pbar(subjectDirs):
                         subjectPath = path + "/" + subject 
                         subjectPathCusSeg = path + "/" + subject +'/custom_confidence'
@@ -258,13 +259,42 @@ class DataPreProcessor(Sequence):
                                                 frameIndex.append(frameNum)
                                                 with open(framePath, 'rb') as f:
                                                         frames.append(np.fromstring(f.read(), dtype=np.uint8))
-                                                metadata[frameNum] = {
+                                                if (scale):
+                                                        for j in range(4): # 5 scalers
+
+                                                                scaler = 1+np.random.random_sample([1])
+                                                                subFrameNum = frameNum*5+j
+                                                                metadata[subFrameNum] = {
+                                                                        'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
+                                                                        'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
+                                                                        'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
+                                                                        'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
+                                                                        'marker': marker,
+                                                                        'frameNum':frameNum,
+                                                                        'scaler':scaler,
+                                                                        'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
+                                                                frameIndex.append(subFrameNum)
+                                                        metadata[frameNum*5+4] = {
                                                         'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
                                                         'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
                                                         'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
                                                         'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
                                                         'marker': marker,
+                                                        'frameNum':frameNum,
+                                                        'scaler':1,
                                                         'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
+                                                        frameIndex.append(frameNum*5+4)
+                                                else:
+                                                        frameIndex.append(frameNum)
+                                                        metadata[frameNum] = {
+                                                                'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
+                                                                'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
+                                                                'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
+                                                                'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
+                                                                'marker': marker,
+                                                                'scaler': 1,
+                                                                'frameNum':frameNum,
+                                                                'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
                                                 }
                                         #Build the dictionary containing the metadata for a frame
                                         
@@ -361,7 +391,8 @@ class DataPreProcessor(Sequence):
         # Returns numpy array containing the image
         def getImage(self, imagePath):
                 if(self.loadedData):
-                        return cv2.imdecode(self.frames[imagePath], -1)
+#                        return cv2.imdecode(self.frames[imagePath], -1)
+                        return cv2.imdecode(self.frames[self.metadata[imagePath]['frameNum']], -1)
                 else:
                         return  cv2.imread(imagePath)
 
@@ -385,7 +416,7 @@ class DataPreProcessor(Sequence):
                 for i, frame in enumerate(imagePaths):
                         #Reading in frame from file
                         image = self.getImage(frame)
-
+                        scaler = self.metadata[frame]['scaler']
                         #Crop image of face from original frame
                         xFace = int(self.metadata[frame]['face']['X'])
                         yFace = int(self.metadata[frame]['face']['Y'])
@@ -433,16 +464,15 @@ class DataPreProcessor(Sequence):
                         leftEyeImage = imageUtils.crop(image, xLeft, yLeft, wLeft, hLeft)
                         rightEyeImage = imageUtils.crop(image, xRight, yRight, wRight, hRight)
 
+                        # resize image based on scaler
+                        faceImage = imageUtils.resize(faceImage, int(wFace/scaler))
+                        leftEyeImage = imageUtils.resize(leftEyeImage, int(wLeft/scaler))
+                        rightEyeImage = imageUtils.resize(rightEyeImage, int(WRight/scaler))
                         #Resize images to 224x224 to pass to neural network
-                        try:
-                                faceImage = imageUtils.resize(faceImage, desiredImageSize)
-                                leftEyeImage = imageUtils.resize(leftEyeImage, desiredEyeImageSize)
-                                rightEyeImage = imageUtils.resize(rightEyeImage, desiredEyeImageSize)
-                        except:
-                                print('ASSERTION ERROR')
-                                print(frame)
-                                print(self.metadata[frame])
-                                raise
+                                                                
+                        faceImage = imageUtils.resize(faceImage, desiredImageSize)
+                        leftEyeImage = imageUtils.resize(leftEyeImage, desiredEyeImageSize)
+                        rightEyeImage = imageUtils.resize(rightEyeImage, desiredEyeImageSize)
 
                         #Writing process images to np array
                         faceImages[i] = faceImage
@@ -463,7 +493,8 @@ class DataPreProcessor(Sequence):
                 Markers=np.zeros((len(imagePaths), MarkerSize))
                 for frameNum, frame in enumerate(imagePaths):
                         marker = np.reshape(self.metadata[frame]['marker'],(-1,))
-                        image = self.getImage(frame) 
+                        image = self.getImage(frame)
+                        scaler = self.metadata[frame]['scaler']
                         if(image.shape[0]>image.shape[1]):
                                 marker[1]=marker[1]+80
                                 marker[3]=marker[3]+80
@@ -476,6 +507,12 @@ class DataPreProcessor(Sequence):
                                 marker[4]=marker[4]+80
                                 marker[6]=marker[6]+80
                                 marker[8]=marker[8]+80
+
+                        Cx = (marker[0]+marker[2]+marker[4]+marker[6])/4
+                        Cy = (marker[1]+marker[3]+marker[5]+marker[7])/4
+                        for i in range(5):
+                                marker[i*2]= (marker[i*2]-Cx)/scaler+Cx
+                                marker[i*2+1]= (marker[i*2+1]-Cy)/scaler+Cy
                         Markers[frameNum]=marker
                 return Markers
                 
