@@ -98,10 +98,10 @@ def createEyeModel(input):
         F3 = createActivation(F2)
         F4 = createMaxPool(F3)                       # 128@56x56  -->> 128@27x27
         ## depthwise separable Conv
-        F5  = createDS(F4,128,5,1,1,'same')          #128@27x27  -->> 128@27x27
+        F5  = createDS(F4,128,5,1,2,'same')          #128@27x27  -->> 128@27x27
         F6 = createMaxPool(F5)                       #128@27x27  -->> 128@13x13
-        F7  = createDS(F6,256,3,2,1,'same')          #128@13x13  -->>  256@7x7
-        F8  = createDS(F7,512,3,1,1,'same')          #256@7x7  -->> 512@7x7 
+        F7  = createDS(F6,256,3,2,2,'same')          #128@13x13  -->>  256@7x7
+        F8  = createDS(F7,512,3,1,2,'same')          #256@7x7  -->> 512@7x7 
         F9  = createMaxPool(F8)                      #512@7x7  -->> 512@3x3
         F10 = Flatten()(F9)
         return F10
@@ -113,10 +113,10 @@ def createFaceModel(input):
         F3 = createActivation(F2)
         F4 = createMaxPool(F3)
         ## depthwise separable Conv
-        F5  = createDS(F4,128,5,1,1,'same')
+        F5  = createDS(F4,128,5,1,2,'same')
         F6 = createMaxPool(F5)
-        F7  = createDS(F6,256,3,2,1,'same')
-        F8  = createDS(F7,512,3,1,1,'same')
+        F7  = createDS(F6,256,3,2,2,'same')
+        F8  = createDS(F7,512,3,1,2,'same')
         F9  = createMaxPool(F8)
         F10 = Flatten()(F9)
 
@@ -156,7 +156,7 @@ def initializeModel():
         rightEyeData= createEyeModel(rightEyeInput)
         faceData = createFaceModel(faceInput)
 #        faceGridData=createFaceGridModel(faceGridInput)
-        markerData = createMarkerModel(MarkerInput)
+        markerData = createEyeLocationModel(MarkerInput)
         
         EyeMerge =  Concatenate(axis=1)([leftEyeData,rightEyeData])
         EyeFc1  = createFullyConnected(EyeMerge,128)

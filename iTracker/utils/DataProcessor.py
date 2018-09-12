@@ -163,7 +163,8 @@ class DataPreProcessor(Sequence):
                 else:
                         print('Building index and collecting metadata for ' + dataset + ' dataset')
                 if(loadAllData):
-                        self.frameIndex, self.metadata, self.frames = self.indexData(self.tempDataDir, loadAllData)
+#                        self.frameIndex, self.metadata, self.frames = self.indexData(self.tempDataDir, loadAllData)
+                        self.frameIndex, self.metadata, self.faceImages,self.leftEyeImages,self.rightEyeImages = self.indexData(self.tempDataDir, loadAllData)
                         self.loadedData = True
                 else:
                         self.frameIndex, self.metadata = self.indexData(self.tempDataDir, loadAllData)
@@ -215,10 +216,10 @@ class DataPreProcessor(Sequence):
 
                 #Declare index lists and metadata dictionary to return
                 if(loadAllData):
-                        frames = []
+#                        frames = []
                         faceImages=[]
                         leftEyeImages=[]
-                        righEyeImages=[]
+                        rightEyeImages=[]
                 frameIndex = []
                 metadata = {}
                 pbar = createProgressBar()
@@ -260,23 +261,27 @@ class DataPreProcessor(Sequence):
                                         else:
                                                 frameIndex.append(frameNum)
                                                 image =cv2.imread(framePath)
-                                                faceImage = getCropImage(image,face['X'][i],  face['Y'][i],  face['W'][i], : face['H'][i])
-                                                leftEyeImage=getCropImage(image,
-                                                with open(framePath, 'rb') as f:
-                                                        frames.append(np.fromstring(f.read(), dtype=np.uint8))
+                                                faceImage    = self.getCropImage(image,face['X'][i],  face['Y'][i],  face['W'][i], face['H'][i])
+                                                leftEyeImage = self.getCropImage(image,leftEye['X'][i],leftEye['Y'][i],leftEye['W'][i], leftEye['H'][i])
+                                                rightEyeImage= self.getCropImage(image, rightEye['X'][i], rightEye['Y'][i],rightEye['W'][i],  rightEye['H'][i])
+                                                faceImages.append(faceImage)
+                                                leftEyeImages.append(leftEyeImage)
+                                                rightEyeImages.append(rightEyeImage)
+                                                
                                                 metadata[frameNum] = {
                                                         'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
                                                         'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
                                                         'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
                                                         'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
                                                         'marker': marker,
+                                                        'imageSize':{'X': image.shape[0],'Y':image.shape[1]},
                                                         'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
                                                 }
                                         #Build the dictionary containing the metadata for a frame
                                         
                                         frameNum += 1
                 if(loadAllData):
-                        return frameIndex, metadata, frames
+                        return frameIndex, metadata, faceImages,leftEyeImages,rightEyeImages
                 else:
                         return frameIndex, metadata
 
@@ -370,9 +375,40 @@ class DataPreProcessor(Sequence):
                         return cv2.imdecode(self.frames[imagePath], -1)
                 else:
                         return  cv2.imread(imagePath)
+                
         def getCropImage(self,image,x,y,w,h):
                 cropImage = imageUtils.crop(image, x, y, w, h)
                 return cv2.imencode('.jpg',cropImage)[1]
+
+
+        # loadInputImages
+        # load face lefteye and rightEye image and decode and resize it
+
+        def getInputImagesFromMem(self,imagePaths):
+                desiredImageSize = 224
+                desiredEyeImageSize = 224
+                
+                #Creating numpy arrays to store images
+                faceImages = np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3))
+                leftEyeImages =  np.zeros((len(imagePaths), desiredEyeImageSize,desiredEyeImageSize , 3)) 
+                rightEyeImages =  np.zeros((len(imagePaths), desiredEyeImageSize, desiredEyeImageSize, 3))
+                
+                for i, frame in enumerate(imagePaths):
+                        faceImage = cv2.imdecode(self.faceImages[frame],-1)
+                        leftEyeImage = cv2.imdecode(self.leftEyeImages[frame],-1)
+                        rightEyeImage = cv2.imdecode(self.rightEyeImages[frame],-1)
+                        faceImage = imageUtils.resize(faceImage, desiredImageSize)
+                        leftEyeImage = imageUtils.resize(leftEyeImage, desiredEyeImageSize)
+                        rightEyeImage = imageUtils.resize(rightEyeImage, desiredEyeImageSize)
+                        faceImages[i] = faceImage
+                        leftEyeImages[i] = leftEyeImage
+                        rightEyeImages[i] = rightEyeImage
+                #Noramlize all data to scale 0-1
+                faceImages = imageUtils.normalize(faceImages, 255)
+                leftEyeImages = imageUtils.normalize(leftEyeImages, 255)
+                rightEyeImages = imageUtils.normalize(rightEyeImages, 255)
+
+                return faceImages, leftEyeImages, rightEyeImages
         
         # getInputImages
         # Creates the properly formatted (cropped and scaled) images of the
@@ -389,6 +425,7 @@ class DataPreProcessor(Sequence):
                 faceImages = np.zeros((len(imagePaths), desiredImageSize, desiredImageSize, 3))
                 leftEyeImages =  np.zeros((len(imagePaths), desiredEyeImageSize,desiredEyeImageSize , 3)) 
                 rightEyeImages =  np.zeros((len(imagePaths), desiredEyeImageSize, desiredEyeImageSize, 3))
+                
                 
                 #Iterate over all imagePaths to retrieve images
                 for i, frame in enumerate(imagePaths):
@@ -472,8 +509,9 @@ class DataPreProcessor(Sequence):
                 Markers=np.zeros((len(imagePaths), MarkerSize))
                 for frameNum, frame in enumerate(imagePaths):
                         marker = np.reshape(self.metadata[frame]['marker'],(-1,))
-                        image = self.getImage(frame) 
-                        if(image.shape[0]>image.shape[1]):
+                        X=self.metadata[frame]['imageSize']['X']
+                        Y=self.metadata[frame]['imageSize']['Y']
+                        if(X>Y):
                                 marker[1]=marker[1]+80
                                 marker[3]=marker[3]+80
                                 marker[5]=marker[5]+80
@@ -512,8 +550,9 @@ class DataPreProcessor(Sequence):
                         Rh = int(  self.metadata[frame]['rightEye']['H'])
 
                         
-                        image = self.getImage(frame) 
-                        if(image.shape[0]>image.shape[1]): 
+                        X=self.metadata[frame]['imageSize']['X']
+                        Y=self.metadata[frame]['imageSize']['Y']
+                        if(X>Y):
                                 Ly =Ly +80
                                 Ry =Ry +80
                         else: 
@@ -685,7 +724,7 @@ class DataPreProcessor(Sequence):
                 except IndexError: #Retrieve small batch at the end of the array
                         framesToRetrieve = self.frameIndex[startIndex:]
 
-                faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImages(framesToRetrieve)
+                faceBatch, leftEyeBatch, rightEyeBatch = self.getInputImagesFromMem(framesToRetrieve)
 #                eyeInfoBatch = self.getEyeLocations(framesToRetrieve)
 #                faceGridBatch = self.getEyeGrids(framesToRetrieve)
                 markerBatch = self.getMarkers(framesToRetrieve)
