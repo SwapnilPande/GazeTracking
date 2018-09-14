@@ -231,6 +231,7 @@ class DataPreProcessor(Sequence):
                         faceGrid = self.getFaceGridJSON(subjectPathCusSeg)
                         dotInfo = self.getDotJSON(subjectPathCusSeg)
                         markers = self.getPoseJSON(subjectPathCusSeg)
+                        screens = self.getScreenJSON(subjectPath)
 
                         #Iterate over frames for the current subject
                         for i, (frame, fv, lv, rv, fgv,marker) in enumerate(zip(frameNames,
@@ -241,39 +242,67 @@ class DataPreProcessor(Sequence):
                                                                 markers)):
                                 #Check if cur frame is valid
                                 if(fv*lv*rv*fgv == 1) and marker !=[]:
-                                        #Generate path for frame
-                                        framePath = subjectPath + "/frames/" + frame
-                                        #Write file path to index
-                                        if(not loadAllData):
-                                                frameIndex.append(framePath)
-                                                metadata[framePath] = {
-                                                        'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
-                                                        'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
-                                                        'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
-                                                        'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
-                                                        'marker': marker,
-                                                        'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
-                                                }
-                                        else:
-                                                frameIndex.append(frameNum)
-                                                with open(framePath, 'rb') as f:
-                                                        frames.append(np.fromstring(f.read(), dtype=np.uint8))
-                                                metadata[frameNum] = {
-                                                        'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
-                                                        'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
-                                                        'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
-                                                        'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
-                                                        'marker': marker,
-                                                        'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
-                                                }
-                                        #Build the dictionary containing the metadata for a frame
-                                        
-                                        frameNum += 1
+                                        facex,facey,facew,faceh,faceV = self.cropFaceFromMarker(marker,screens['W'][i],screens['H'][i])
+                                        if faceV :
+                                                #Generate path for frame
+                                                framePath = subjectPath + "/frames/" + frame
+                                                #Write file path to index
+                                                if(not loadAllData):
+                                                        frameIndex.append(framePath)
+                                                        metadata[framePath] = {
+                                                                'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
+                                                                'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
+                                                                'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
+                                                                'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
+                                                                'marker': marker,
+                                                                'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
+                                                        }
+                                                else:
+                                                        frameIndex.append(frameNum)
+                                                        with open(framePath, 'rb') as f:
+                                                                frames.append(np.fromstring(f.read(), dtype=np.uint8))
+                                                                metadata[frameNum] = {
+                                                                        'face' : {'X' : facex, 'Y': facey, 'W' : facew, 'H'  : faceh},
+                                                                        'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
+                                                                        'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
+                                                                        'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
+                                                                        'marker': marker,
+                                                                        'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
+                                                                }
+                                                                #Build the dictionary containing the metadata for a frame
+                                                                
+                                                frameNum += 1
                 if(loadAllData):
                         return frameIndex, metadata, frames
                 else:
                         return frameIndex, metadata
 
+        def cropFaceFromMarker(self,marker,W,H):
+                marker = np.reshape(marker,(-1,))
+                cx=int((marker[0]+marker[2]+marker[4]+marker[6]+4*marker[8])/8)
+                cy=int((marker[1]+marker[3]+marker[5]+marker[7]+4*marker[9])/8)
+                dist =int( 1.4*math.sqrt( (marker[0] - marker[8])**2 + (marker[1] - marker[9])**2 ))
+                x= int(cx-dist)
+                y=int(cy-dist)
+                w=h=int(2*dist)
+                valid = True
+                
+                bot_x =x+w
+                bot_y =y+w
+                if x <0 or y<0 :
+                        valid =False
+                if W>H and( bot_x>640 or bot_y>480):
+                        valid =False
+                if H>W and (bot_y>640 or bot_x>480):
+                        valid =False
+                return x,y,w,h,valid
+        
+                 
+                
+        def getScreenJSON(self,subjectPath):
+                with open(subjectPath+'/screen.json') as f:
+                        screens = json.load(f)
+                return screens
         # get PoseJSON
         # Loads pose.json to dictionary
         # this file contains the face markers
