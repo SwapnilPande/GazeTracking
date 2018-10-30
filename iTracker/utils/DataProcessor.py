@@ -147,11 +147,11 @@ class DataPreProcessor(Sequence):
                 self.loadedData = False
 
                 self.debug = debug
-                if(not(dataset in ['test', 'validate', 'train'])):
+                if(not(dataset in ['test', 'validate', 'train','sample'])):
                         raise ValueError("Invalid dataset. Dataset can only be test, train, or validate.")
                 #Creating variables containing paths to data dirs
-                self.tempDataDir = pathTemp + '/temp/' + dataset
-
+                #self.tempDataDir = pathTemp + '/temp/' + dataset
+                self.tempDataDir = pathTemp + '/Guo_data/' + dataset
                 #Stores the number of subjects
                 self.numSubjects =  len(os.listdir(self.tempDataDir))
 
@@ -221,7 +221,43 @@ class DataPreProcessor(Sequence):
                 pbar = createProgressBar()
                 frameNum = 0
                 for subject in pbar(subjectDirs):
-                        subjectPath = path + "/" + subject 
+                        subjectPath = path + "/" + subject
+
+                        caliPoints, facebox,markers,leftEyes,rightEyes = self.getNewDataJSON(subjectPath)
+
+                        for i , (caliPoint, face,marker,leftEye,rightEye) in enumerate(zip(caliPoints,
+                                                                                           facebox,
+                                                                                           markers,
+                                                                                           leftEyes,
+                                                                                           rightEyes)):
+
+                                framePath = subjectPath+"/"+str(i)+".jpg"
+                                if(not loadAllData):
+                                        frameIndex.append(framePath)
+                                        metadata[framePath] = {
+                                                'face' :self.getBB(face),
+                                                'leftEye' : self.getBB(leftEye),
+                                                'rightEye' : self.getBB(rightEye),
+                                                'faceGrid' : {},
+                                                'marker': marker,
+                                                'label': self.getLabelfromCaliPoints(caliPoint)
+                                        }
+                                else:
+                                        frameIndex.append(frameNum)
+                                        with open(framePath, 'rb') as f:
+                                                frames.append(np.fromstring(f.read(), dtype=np.uint8))
+                                        metadata[frameNum] = {
+                                                'face' :self.getBB(face),
+                                                'leftEye' : self.getBB(leftEye),
+                                                'rightEye' : self.getBB(rightEye),
+                                                'faceGrid' : {},
+                                                'marker': marker,
+                                                'label': self.getLabelfromCaliPoints(caliPoint)
+                                        }
+                                        #Build the dictionary containing the metadata for a frame
+                                                
+                                frameNum += 1
+                        '''
                         subjectPathCusSeg = path + "/" + subject +'/custom_confidence'
                         #Stores the name of the frame files in the frames dir
                         frameNames = self.getFramesJSON(subjectPath)
@@ -269,11 +305,33 @@ class DataPreProcessor(Sequence):
                                         #Build the dictionary containing the metadata for a frame
                                         
                                         frameNum += 1
+                        '''
                 if(loadAllData):
                         return frameIndex, metadata, frames
                 else:
                         return frameIndex, metadata
 
+        def getBB(self,box):
+                topx = min(box[0],box[2])
+                topy = min(box[1],box[3])
+                width = abs(box[0]-box[2])
+                height = abs(box[1]-box[3])
+                return {'X':topx,'Y':topy,'W':width,'H':height}
+
+        def getLabelfromCaliPoints(self,caliPoint):
+                screenWidth = 28.5
+                screenHeight=19.0
+                cameraX=14.25
+                cameraY=-0.75
+                return {'XCam':caliPoint[0]/100.0*screenWidth-cameraX,'YCam':caliPoint[1]/100.0*screenHeight-cameraY}
+                
+        def getNewDataJSON(self,subjectPath):
+                with open(subjectPath+'/calibration.json') as f:
+                        data = json.load(f)
+                if 'markers' in data.keys() and 'facebox' in data.keys() and 'caliPoints' in data.keys():
+                        return data['caliPoints'], data['facebox'], data['markers'],data['leftEye'],data['rightEye']
+                else:
+                        return [], [], [], [], [] 
         # get PoseJSON
         # Loads pose.json to dictionary
         # this file contains the face markers
@@ -463,6 +521,7 @@ class DataPreProcessor(Sequence):
                 Markers=np.zeros((len(imagePaths), MarkerSize))
                 for frameNum, frame in enumerate(imagePaths):
                         marker = np.reshape(self.metadata[frame]['marker'],(-1,))
+                        '''
                         image = self.getImage(frame) 
                         if(image.shape[0]>image.shape[1]):
                                 marker[1]=marker[1]+80
@@ -476,6 +535,7 @@ class DataPreProcessor(Sequence):
                                 marker[4]=marker[4]+80
                                 marker[6]=marker[6]+80
                                 marker[8]=marker[8]+80
+                        '''
                         Markers[frameNum]=marker
                 return Markers
                 
