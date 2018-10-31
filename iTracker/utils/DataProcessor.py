@@ -323,7 +323,7 @@ class DataPreProcessor(Sequence):
                 screenHeight=19.0
                 cameraX=14.25
                 cameraY=-0.75
-                return {'XCam':caliPoint[0]/100.0*screenWidth-cameraX,'YCam':caliPoint[1]/100.0*screenHeight-cameraY}
+                return {'XCam':caliPoint[0]/100.0*screenWidth-cameraX,'YCam':-(caliPoint[1]/100.0*screenHeight-cameraY)}
                 
         def getNewDataJSON(self,subjectPath):
                 with open(subjectPath+'/calibration.json') as f:
