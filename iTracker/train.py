@@ -36,7 +36,7 @@ if __name__ == '__main__':
         #Custom imports
         from utils.uiUtils import yesNoPrompt #UI prompts
         from utils.customCallbacks import Logger #Logger callback for logging training progress
-        from utils import DataProcessor #Custom datset processor
+        from utils import GDataProcessor, DataProcessor #Custom datset processor
         import iTrackerModel # Machine learning model import
 
         class ModelMGPU(Model):
@@ -163,8 +163,10 @@ if __name__ == '__main__':
 
         #Initialize Data pre-processor here
         ppTrain = DataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
+        GppTrain =GDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
+        GppValidate = GDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         ppValidate = DataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
-        ppTest =  DataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
+        GppTest =  GDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
         
         #Initialize Logging Dir here
 
@@ -296,12 +298,40 @@ if __name__ == '__main__':
         #################################### TRAINING MODEL ###################################
         print("")
         print("Beginning Training...")
-        trainModel().fit_generator(
+        for i in range(100):
+                start_epoch = 1000+i
+                stop_epoch = start_epoch+1
+                trainModel().fit_generator(
                         ppTrain, 
-                        epochs = numEpochs, 
+                        epochs = stop_epoch,
+                        steps_per_epoch = 50,
+                        validation_data = GppValidate, 
+                        callbacks = callbacks,
+                        initial_epoch = start_epoch,
+                        workers = numWorkers,
+                        max_queue_size = queueSize,
+                        shuffle=True
+                )
+                start_epoch = 2000+10*i
+                stop_epoch = start_epoch+10
+                trainModel().fit_generator(
+                        GppTrain, 
+                        epochs = stop_epoch, 
+                        validation_data = GppValidate, 
+                        callbacks = callbacks,
+                        initial_epoch = start_epoch,
+                        workers = numWorkers,
+                        max_queue_size = queueSize,
+                        shuffle=True
+                )
+                start_epoch = 3000+1*i
+                stop_epoch = start_epoch+1
+                trainModel().fit_generator(
+                        GppTrain, 
+                        epochs = stop_epoch, 
                         validation_data = ppValidate, 
                         callbacks = callbacks,
-                        initial_epoch = initialEpoch,
+                        initial_epoch = start_epoch,
                         workers = numWorkers,
                         max_queue_size = queueSize,
                         shuffle=True
@@ -309,7 +339,7 @@ if __name__ == '__main__':
 
         #Evaluate model here
         testLoss = iTrackerModel.evaluate_generator(
-                ppTest,
+                GppTest,
                 steps = math.ceil(len(ppTest))
         )
 
