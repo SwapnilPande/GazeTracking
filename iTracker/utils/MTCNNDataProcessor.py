@@ -222,36 +222,32 @@ class DataPreProcessor(Sequence):
                 frameNum = 0
                 for subject in pbar(subjectDirs):
                         subjectPath = path + "/" + subject 
-                        subjectPathCusSeg = path + "/" + subject +'/custom_confidence'
+                        subjectPathCusSeg = path + "/" + subject +'/mtcnn_segmentation'
                         #Stores the name of the frame files in the frames dir
-                        frameNames = self.getFramesJSON(subjectPath)
+                        frameNames = self.getFramesJSON(subjectPathCusSeg)
                         #Collecting metadata about face, eyes, facegrid, labels
-                        face = self.getFaceJSON(subjectPathCusSeg)
-                        leftEye, rightEye = self.getEyesJSON(subjectPathCusSeg)
-                        faceGrid = self.getFaceGridJSON(subjectPathCusSeg)
+                        markers,faceboxes,confidence = self.getFaceAndMarkerJson(subjectPathCusSeg)
                         dotInfo = self.getDotJSON(subjectPathCusSeg)
-                        markers = self.getPoseJSON(subjectPathCusSeg)
+                        
 
                         #Iterate over frames for the current subject
-                        for i, (frame, fv, lv, rv, fgv,marker) in enumerate(zip(frameNames,
-                                                                face['IsValid'],
-                                                                leftEye['IsValid'],
-                                                                rightEye['IsValid'],
-                                                                faceGrid['IsValid'],
-                                                                markers)):
+                        for i, (frame, cf, marker, facebox) in enumerate(zip(frameNames,
+                                                                          confidence,
+                                                                          markers,
+                                                                          faceboxes)):
                                 #Check if cur frame is valid
-                                if(fv*lv*rv*fgv == 1) and marker !=[]:
-                                        
+                                if(cf>0.99) and marker !=[]:
+                                        leftEye,rightEye,face = self.getEyesFromMarker(marker,facebox)
                                         #Generate path for frame
                                         framePath = subjectPath + "/frames/" + frame
                                         #Write file path to index
                                         if(not loadAllData):
                                                 frameIndex.append(framePath)
                                                 metadata[framePath] = {
-                                                        'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
-                                                        'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
-                                                        'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
-                                                        'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
+                                                        'face' : {'X' : face[0], 'Y': face[1], 'W' : face[2], 'H'  : face[3]},
+                                                        'leftEye' : {'X' : leftEye[0], 'Y': leftEye[1], 'W' : leftEye[2], 'H'  : leftEye[3]},
+                                                        'rightEye' : {'X' : rightEye[0], 'Y': rightEye[1], 'W' : rightEye[2], 'H'  : rightEye[3]},
+                                                        'faceGrid' : {},
                                                         'marker': marker,
                                                         'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
                                                 }
@@ -260,10 +256,10 @@ class DataPreProcessor(Sequence):
                                                 with open(framePath, 'rb') as f:
                                                         frames.append(np.fromstring(f.read(), dtype=np.uint8))
                                                 metadata[frameNum] = {
-                                                        'face' : {'X' : face['X'][i], 'Y': face['Y'][i], 'W' : face['W'][i], 'H'  : face['H'][i]},
-                                                        'leftEye' : {'X' : leftEye['X'][i], 'Y': leftEye['Y'][i], 'W' : leftEye['W'][i], 'H'  : leftEye['H'][i]},
-                                                        'rightEye' : {'X' : rightEye['X'][i], 'Y': rightEye['Y'][i], 'W' : rightEye['W'][i], 'H'  : rightEye['H'][i]},
-                                                        'faceGrid' : {'X' : faceGrid['X'][i], 'Y': faceGrid['Y'][i], 'W' : faceGrid['W'][i], 'H'  : faceGrid['H'][i]},
+                                                        'face' : {'X' : face[0], 'Y': face[1], 'W' : face[2], 'H'  : face[3]},
+                                                        'leftEye' : {'X' : leftEye[0], 'Y': leftEye[1], 'W' : leftEye[2], 'H'  : leftEye[3]},
+                                                        'rightEye' : {'X' : rightEye[0], 'Y': rightEye[1], 'W' : rightEye[2], 'H'  : rightEye[3]},
+                                                        'faceGrid' : {},
                                                         'marker': marker,
                                                         'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
                                                 }
@@ -276,7 +272,7 @@ class DataPreProcessor(Sequence):
                         return frameIndex, metadata
 
         # get face 'x,y,w,h' from MTCNN marker
-        def getEyesFromMarker(self,marker,factor=0.2):
+        def getEyesFromMarker(self,marker,facebox,factor=0.2):
                 leftCenter = [marker[0],marker[1]]
                 rightCenter= [marker[2],marker[3]]
                 d = np.array(dist.euclidean(leftCenter, rightCenter)) * factor 
@@ -291,11 +287,17 @@ class DataPreProcessor(Sequence):
                 leftEyeMarks = [l - (v*d), l + (v*d)]
                 rightEyeMarks = [r - (v*d), r + (v*d)]
                 seg =Segmenter(facebox,leftEyeMarks, rightEyeMarks, 640, 640)
-                leftEye=[seg.leBB[0],seg.leBB[1],abs(seg.leBB[2]-seg.leBB[0]),abs(seg.leBB[3]-seg.leBB[1])]
+                leftEye =[seg.leBB[0],seg.leBB[1],abs(seg.leBB[2]-seg.leBB[0]),abs(seg.leBB[3]-seg.leBB[1])]
                 rightEye=[seg.reBB[0],seg.reBB[1],abs(seg.reBB[2]-seg.reBB[0]),abs(seg.reBB[3]-seg.reBB[1])]
-        return leftEye,rightEye
-   
-                
+                face    =[seg.faceBB[0],seg.faceBB[1],abs(seg.faceBB[2]-seg.faceBB[0]),abs(seg.faceBB[3]-seg.faceBB[1])]
+                return leftEye,rightEye,face
+        def getFaceAndMarkerJson(self,subjectPath):
+                with open(subjectPath+'/mtcnn.json' as f:
+                        mtcnn = json.load(f)
+                markers=mtcnn['Markers']
+                faceboxes=mtcnn['Facebox']
+                return markers,faceboxes,mtcnn['Confidence']
+
         # get PoseJSON
         # Loads pose.json to dictionary
         # this file contains the face markers
