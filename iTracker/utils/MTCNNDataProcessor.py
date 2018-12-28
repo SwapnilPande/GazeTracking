@@ -10,6 +10,11 @@ from keras.utils import Sequence
 from keras.utils.training_utils import multi_gpu_model
 from utils.uiUtils import yesNoPrompt, createProgressBar
 from utils import imageUtils
+from scipy.spatial import distance as dist
+from numpy import linalg as LA
+#from segmenter import Segmenter
+from utils.segmenter import Segmenter
+
 
 
 def initializeData(pathToData, pathTemp, trainProportion, validateProportion, args):
@@ -292,7 +297,7 @@ class DataPreProcessor(Sequence):
                 face    =[seg.faceBB[0],seg.faceBB[1],abs(seg.faceBB[2]-seg.faceBB[0]),abs(seg.faceBB[3]-seg.faceBB[1])]
                 return leftEye,rightEye,face
         def getFaceAndMarkerJson(self,subjectPath):
-                with open(subjectPath+'/mtcnn.json' as f:
+                with open(subjectPath+'/mtcnn.json') as f:
                         mtcnn = json.load(f)
                 markers=mtcnn['Markers']
                 faceboxes=mtcnn['Facebox']

@@ -36,7 +36,7 @@ if __name__ == '__main__':
         #Custom imports
         from utils.uiUtils import yesNoPrompt #UI prompts
         from utils.customCallbacks import Logger #Logger callback for logging training progress
-        from utils import GDataProcessor, DataProcessor #Custom datset processor
+        from utils import GDataProcessor, DataProcessor,MTCNNDataProcessor #Custom datset processor
         import iTrackerModel # Machine learning model import
 
         class ModelMGPU(Model):
@@ -67,6 +67,7 @@ if __name__ == '__main__':
         #Loaded from prexisting log file if training from existing model
         dataPathJSON = paramJSON['dataPaths'] # Extract datapath information
         loadModel = paramJSON['loadPrexistingModel'] #Check if we are loading existing model
+        print(loadModel)
         if(not loadModel): #Training from scratch, not loading existing model
                 #Load hyperparameters from ml_params.json
                 hyperParamsJSON = paramJSON['trainingHyperparameters']
@@ -162,11 +163,15 @@ if __name__ == '__main__':
 
 
         #Initialize Data pre-processor here
-        ppTrain = DataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
-        GppTrain =GDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
-        GppValidate = GDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
-        ppValidate = DataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
-        GppTest =  GDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
+        #ppTrain = DataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
+        print('loading training data')
+        #ppTrain = MTCNNDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
+        #GppTrain =GDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
+        #GppValidate = GDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
+        #ppValidate = DataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
+        ppValidate = MTCNNDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
+        ppTest = DataProcessor.DataPreProcessor(pathTest, testBatchSize, 'test', args)
+        #GppTest =  GDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
         
         #Initialize Logging Dir here
 
@@ -298,6 +303,17 @@ if __name__ == '__main__':
         #################################### TRAINING MODEL ###################################
         print("")
         print("Beginning Training...")
+        trainModel().fit_generator(
+                ppTrain, 
+                epochs = numEpochs, 
+                validation_data = ppValidate, 
+                callbacks = callbacks,
+                initial_epoch = initialEpoch,
+                workers = numWorkers,
+                max_queue_size = queueSize,
+                shuffle=True
+        )
+        '''
         for i in range(100):
                 start_epoch = 1000+i
                 stop_epoch = start_epoch+1
@@ -336,10 +352,10 @@ if __name__ == '__main__':
                         max_queue_size = queueSize,
                         shuffle=True
                 )
-
+        '''
         #Evaluate model here
         testLoss = iTrackerModel.evaluate_generator(
-                GppTest,
+                ppTest,
                 steps = math.ceil(len(ppTest))
         )
 
