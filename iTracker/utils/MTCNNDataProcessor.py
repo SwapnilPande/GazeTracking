@@ -232,17 +232,32 @@ class DataPreProcessor(Sequence):
                         frameNames = self.getFramesJSON(subjectPathCusSeg)
                         #Collecting metadata about face, eyes, facegrid, labels
                         markers,faceboxes,confidence = self.getFaceAndMarkerJson(subjectPathCusSeg)
+                        #screen info
+                        screenH,screenW = self.getScreenJson(subjectPath)
                         dotInfo = self.getDotJSON(subjectPathCusSeg)
                         
 
                         #Iterate over frames for the current subject
-                        for i, (frame, cf, marker, facebox) in enumerate(zip(frameNames,
-                                                                          confidence,
-                                                                          markers,
-                                                                          faceboxes)):
+                        for i, (frame, cf, marker, facebox,scH,scW) in enumerate(zip(frameNames,
+                                                                                     confidence,
+                                                                                     markers,
+                                                                                     faceboxes,
+                                                                                     screenH,
+                                                                                     screenW)):
+                                if (cf>0.90) and marker !=[]:
+                                        leftEye=[]
+                                        rightEye=[]
+                                        face=[]
+                                        if (scH>scW):
+                                                width = 480
+                                                height=640
+                                        else:
+                                                width =640
+                                                height=480
+                                        leftEye,rightEye,face = self.getEyesFromMarker(marker,facebox,width,height)
                                 #Check if cur frame is valid
-                                if(cf>0.99) and marker !=[]:
-                                        leftEye,rightEye,face = self.getEyesFromMarker(marker,facebox)
+                                if(cf>0.90)and marker !=[] and max(marker)<640 and min(marker)>0 and leftEye[2]>10 and leftEye[3]>10 and rightEye[2]>10 and rightEye[3]>10 and face[2]>10 and face[3]>10 and rightEye[0]<600 and rightEye[1]<600 and rightEye[0]>0 and rightEye[1]>0 and leftEye[0]>0 and leftEye[0]<600 and leftEye[1]>0 and leftEye[1]<600:
+                                        
                                         #Generate path for frame
                                         framePath = subjectPath + "/frames/" + frame
                                         #Write file path to index
@@ -276,8 +291,19 @@ class DataPreProcessor(Sequence):
                 else:
                         return frameIndex, metadata
 
+        def checkValidation(self,cf,marker,leftEye,rightEye,width,height):
+                if cf <0.90 or marker==[] or min(marker)<0 or max(marker)>640 or min(leftEye)<0 or min(rightEye)<0 or max(leftEye)>640 or max(rightEye)>640:
+                        return False
+                
+                if width>height:   #640X480
+                        if max(marker[1],marker[3],marker[5],marker[7],marker[9])>480:
+                                return False
+                else:             #480x640
+                        if max(marker[0],marker[2],marker[4],marker[6],marker[8])>480:
+                                return False
+                return True
         # get face 'x,y,w,h' from MTCNN marker
-        def getEyesFromMarker(self,marker,facebox,factor=0.2):
+        def getEyesFromMarker(self,marker,facebox,width=480,height=640,factor=0.2):
                 leftCenter = [marker[0],marker[1]]
                 rightCenter= [marker[2],marker[3]]
                 d = np.array(dist.euclidean(leftCenter, rightCenter)) * factor 
@@ -291,7 +317,8 @@ class DataPreProcessor(Sequence):
                         v = v / norm
                 leftEyeMarks = [l - (v*d), l + (v*d)]
                 rightEyeMarks = [r - (v*d), r + (v*d)]
-                seg =Segmenter(facebox,leftEyeMarks, rightEyeMarks, 640, 640)
+                facebox=self.checkFacebox(facebox)
+                seg =Segmenter(facebox,leftEyeMarks, rightEyeMarks, width, height)
                 leftEye =[seg.leBB[0],seg.leBB[1],abs(seg.leBB[2]-seg.leBB[0]),abs(seg.leBB[3]-seg.leBB[1])]
                 rightEye=[seg.reBB[0],seg.reBB[1],abs(seg.reBB[2]-seg.reBB[0]),abs(seg.reBB[3]-seg.reBB[1])]
                 face    =[seg.faceBB[0],seg.faceBB[1],abs(seg.faceBB[2]-seg.faceBB[0]),abs(seg.faceBB[3]-seg.faceBB[1])]
@@ -302,7 +329,15 @@ class DataPreProcessor(Sequence):
                 markers=mtcnn['Markers']
                 faceboxes=mtcnn['Facebox']
                 return markers,faceboxes,mtcnn['Confidence']
-
+        def checkFacebox(self,facebox):
+                for i, (number) in  enumerate( facebox):
+                        facebox[i]=min(640,max(0,number))
+                return facebox
+        def getScreenJson(self,subjectPath):
+                with open(subjectPath+'/screen.json') as f:
+                        screen = json.load(f)
+                return screen['H'],screen['W']
+                        
         # get PoseJSON
         # Loads pose.json to dictionary
         # this file contains the face markers
