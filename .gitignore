@@ -6,3 +6,5 @@ config.py
 iTracker-log*
 
 *.pb
+
+*.py~

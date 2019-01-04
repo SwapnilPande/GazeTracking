@@ -36,7 +36,7 @@ if __name__ == '__main__':
         #Custom imports
         from utils.uiUtils import yesNoPrompt #UI prompts
         from utils.customCallbacks import Logger #Logger callback for logging training progress
-        from utils import GDataProcessor, DataProcessor,MTCNNDataProcessor #Custom datset processor
+        from utils import GDataProcessor, DataProcessor,MTCNNDataProcessor, CaliDataProcessor #Custom datset processor
         import iTrackerModel # Machine learning model import
 
         class ModelMGPU(Model):
@@ -170,7 +170,9 @@ if __name__ == '__main__':
         #GppValidate = GDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         #ppValidate = DataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         ppValidate = MTCNNDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
-        ppTest = DataProcessor.DataPreProcessor(pathTest, testBatchSize, 'test', args)
+        CaliTrain = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadValidateInMemory)
+        CaliValidate = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
+        ppTest = MTCNNDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
         #GppTest =  GDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
         
         #Initialize Logging Dir here
@@ -303,10 +305,11 @@ if __name__ == '__main__':
         #################################### TRAINING MODEL ###################################
         print("")
         print("Beginning Training...")
+        '''
         trainModel().fit_generator(
-                ppTrain, 
+                CaliTrain, 
                 epochs = numEpochs, 
-                validation_data = ppValidate, 
+                validation_data = CaliValidate, 
                 callbacks = callbacks,
                 initial_epoch = initialEpoch,
                 workers = numWorkers,
@@ -321,7 +324,7 @@ if __name__ == '__main__':
                         ppTrain, 
                         epochs = stop_epoch,
                         steps_per_epoch = 50,
-                        validation_data = GppValidate, 
+                        validation_data = CaliValidate, 
                         callbacks = callbacks,
                         initial_epoch = start_epoch,
                         workers = numWorkers,
@@ -331,9 +334,9 @@ if __name__ == '__main__':
                 start_epoch = 2000+10*i
                 stop_epoch = start_epoch+10
                 trainModel().fit_generator(
-                        GppTrain, 
+                        CaliTrain, 
                         epochs = stop_epoch, 
-                        validation_data = GppValidate, 
+                        validation_data = CaliValidate, 
                         callbacks = callbacks,
                         initial_epoch = start_epoch,
                         workers = numWorkers,
@@ -343,7 +346,7 @@ if __name__ == '__main__':
                 start_epoch = 3000+1*i
                 stop_epoch = start_epoch+1
                 trainModel().fit_generator(
-                        GppTrain, 
+                        CaliTrain, 
                         epochs = stop_epoch, 
                         validation_data = ppValidate, 
                         callbacks = callbacks,
@@ -352,7 +355,7 @@ if __name__ == '__main__':
                         max_queue_size = queueSize,
                         shuffle=True
                 )
-        '''
+
         #Evaluate model here
         testLoss = iTrackerModel.evaluate_generator(
                 ppTest,
