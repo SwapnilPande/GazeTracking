@@ -1,9 +1,10 @@
 #Import necessary layers for model
-from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D,Activation,SeparableConv2D,AveragePooling2D,Flatten
+from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D,Activation,SeparableConv2D,AveragePooling2D,Flatten,DepthwiseConv2D,ReLU
 #Import initializers for weights and biases
 from keras.initializers import Zeros, RandomNormal
 from keras.models import Model
 from keras.layers.normalization import BatchNormalization
+import numpy as np
 
 ########################## Function definitions for defining model ##########################
 def randNormKernelInitializer():
@@ -42,6 +43,9 @@ def createDw(input,filters, kernelSize, stride,depth_multiplier=1,padding ='same
                 bias_initializer = 'zeros',
                 padding =padding
                 )(input)
+
+
+
 # createMaxPool
 # Function to simplify the process of creating a MaxPooling layer
 # Populates parameters that are common for all maxpool layers in net
@@ -75,6 +79,81 @@ def createDS(input,filter,kernelSize,stride,depth_multiplier,padding):
         output3 = createActivation(output2)
         return output3
 
+def ReLU6(input):
+        return ReLU(max_value=6)(input)
+
+def createBottleneck(input,input_channel,output_channel,stride,expansion,padding='same',kernelSize=3):
+        output1 = Conv2D(filters=input_channel*expansion,
+                         kernel_size=1,
+                         strides=(1, 1),
+                         padding=padding,
+                         data_format=None,
+                         dilation_rate=(1, 1),
+                         activation=None,
+                         use_bias=True,
+                         kernel_initializer=randNormKernelInitializer(),
+                         bias_initializer='zeros'
+                         )(input);
+        output1 = createBN(output1);
+        output2= ReLU6(output1);
+        
+        output3= DepthwiseConv2D(kernel_size=kernelSize,
+                                  strides=stride,
+                                  padding='same',
+                                  depth_multiplier=1,
+                                  activation=None,
+                                  use_bias=True,
+                                  )(output2);
+        output3 = createBN(output3);
+        output4 = ReLU6(output3);
+
+        output5 = Conv2D(filters=output_channel,
+                         kernel_size=1,
+                         strides=(1, 1),
+                         padding=padding,
+                         data_format=None,
+                         dilation_rate=(1, 1),
+                         activation='linear',
+                         use_bias=True,
+                         kernel_initializer=randNormKernelInitializer(),
+                         bias_initializer='zeros'
+                         )(output4);
+        return output5
+
+def createEyeModelV2(input):
+        ## standard ConV+BN+activation
+        F1 = createCv(input,128,5,4,padding='same')  #3@224x224 -->> 128@56x56
+        F2 = createBN(F1)
+        F3 = createActivation(F2)
+        F4 = createMaxPool(F3)                       # 128@56x56  -->> 128@27x27
+        ## bottleneck block
+        F5  = createBottleneck(input=F4,input_channel=128,output_channel=128,kernelSize=3,stride=1,expansion=1,padding='same')          #128@27x27  -->> 128@27x27
+        F6 = createMaxPool(F5)                       #128@27x27  -->> 128@13x13
+        F7  = createBottleneck(input=F6,input_channel=128,output_channel=256,kernelSize=3,stride=2,expansion=6,padding='same')          #128@13x13  -->> 128@7x7
+        F8  = createBottleneck(input=F7,input_channel=256,output_channel=512,kernelSize=3,stride=1,expansion=6,padding='same')          #256@7x7  -->> 512@7x7
+        F9  = createMaxPool(F8)                      #512@7x7  -->> 512@3x3
+        F10 = Flatten()(F9)
+                
+        return F10
+
+def createFaceModelV2(input):
+        ## standard ConV+BN+activation
+        F1 = createCv(input,128,5,4,padding='same')
+        F2 = createBN(F1)
+        F3 = createActivation(F2)
+        F4 = createMaxPool(F3)
+        ## bottleneck block
+        F5  = createBottleneck(input=F4,input_channel=128,output_channel=128,kernelSize=3,stride=1,expansion=1,padding='same')          #128@27x27  -->> 128@27x27
+        F6 = createMaxPool(F5)                       #128@27x27  -->> 128@13x13
+        F7  = createBottleneck(input=F6,input_channel=128,output_channel=256,kernelSize=3,stride=2,expansion=6,padding='same')          #128@13x13  -->> 128@7x7
+        F8  = createBottleneck(input=F7,input_channel=256,output_channel=512,kernelSize=3,stride=1,expansion=6,padding='same')          #256@7x7  -->> 512@7x7
+        F9  = createMaxPool(F8)                      #512@7x7  -->> 512@3x3
+        F10 = Flatten()(F9)
+
+        F11 = createFullyConnected(F10,128)
+        F12 = createFullyConnected(F11,64)
+        
+        return F12
 
 def createSmallEyeModel(input):
         ## standard ConV+BN+activation
@@ -154,9 +233,9 @@ def initializeModel():
         MarkerInput = Input(shape=(10,))
         
         ### eye models
-        leftEyeData = createEyeModel(leftEyeInput)
-        rightEyeData= createEyeModel(rightEyeInput)
-        faceData = createFaceModel(faceInput)
+        leftEyeData = createEyeModelV2(leftEyeInput)
+        rightEyeData= createEyeModelV2(rightEyeInput)
+        faceData = createFaceModelV2(faceInput)
 #        faceGridData=createFaceGridModel(faceGridInput)
         markerData = createMarkerModel(MarkerInput)
         

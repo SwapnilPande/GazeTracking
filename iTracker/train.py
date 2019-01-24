@@ -170,8 +170,8 @@ if __name__ == '__main__':
         #GppValidate = GDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         #ppValidate = DataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         ppValidate = MTCNNDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
-        CaliTrain = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadValidateInMemory)
-        CaliValidate = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
+        #CaliTrain = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadValidateInMemory)
+        #CaliValidate = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         ppTest = MTCNNDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
         #GppTest =  GDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
         
@@ -305,6 +305,17 @@ if __name__ == '__main__':
         #################################### TRAINING MODEL ###################################
         print("")
         print("Beginning Training...")
+        trainModel().fit_generator(
+                        ppTrain, 
+                        epochs = numEpochs, 
+                        validation_data = ppValidate, 
+                        callbacks = callbacks,
+                        initial_epoch = initialEpoch,
+                        workers = numWorkers,
+                        max_queue_size = queueSize,
+                        shuffle=True
+                )
+
         '''
         trainModel().fit_generator(
                 CaliTrain, 
@@ -316,7 +327,7 @@ if __name__ == '__main__':
                 max_queue_size = queueSize,
                 shuffle=True
         )
-        '''
+        
         for i in range(100):
                 start_epoch = 1000+i
                 stop_epoch = start_epoch+1
@@ -355,7 +366,7 @@ if __name__ == '__main__':
                         max_queue_size = queueSize,
                         shuffle=True
                 )
-
+        '''
         #Evaluate model here
         testLoss = iTrackerModel.evaluate_generator(
                 ppTest,
