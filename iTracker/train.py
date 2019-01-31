@@ -170,8 +170,8 @@ if __name__ == '__main__':
         #GppValidate = GDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         #ppValidate = DataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         ppValidate = MTCNNDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
-        CaliTrain = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadValidateInMemory)
-        CaliValidate = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
+        #CaliTrain = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadValidateInMemory)
+        #CaliValidate = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         ppTest = MTCNNDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
         #GppTest =  GDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
         

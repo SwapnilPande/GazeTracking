@@ -534,7 +534,7 @@ class DataPreProcessor(Sequence):
                                 marker[5]=marker[5]+80
                                 marker[7]=marker[7]+80
                                 marker[9]=marker[9]+80
-                        else:
+                        elif (image.shape[0]<image.shape[1]):
                                 marker[0]=marker[0]+80
                                 marker[2]=marker[2]+80
                                 marker[4]=marker[4]+80
@@ -747,10 +747,10 @@ class DataPreProcessor(Sequence):
                 labelsBatch = self.getLabels(framesToRetrieve)
                 if(not self.debug):
                         return {
-                                #'input_3' : faceBatch, 
-                                                'input_1' : leftEyeBatch, 
-                                                'input_2' : rightEyeBatch, 
-                                                'input_3' : markerBatch
+                                'input_3' : faceBatch, 
+                                'input_1' : leftEyeBatch, 
+                                'input_2' : rightEyeBatch, 
+                                'input_4' : markerBatch
                                         }, labelsBatch#, metaBatch
                 else:
                         metaBatch = np.array(framesToRetrieve)

@@ -1,5 +1,5 @@
 #Import necessary layers for model
-from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D,Activation,SeparableConv2D,AveragePooling2D,Flatten,DepthwiseConv2D,ReLU
+from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D,Activation,SeparableConv2D,AveragePooling2D,Flatten,DepthwiseConv2D,ReLU,Dropout
 #Import initializers for weights and biases
 from keras.initializers import Zeros, RandomNormal
 from keras.models import Model
@@ -151,7 +151,9 @@ def createFaceModelV2(input):
         F10 = Flatten()(F9)
 
         F11 = createFullyConnected(F10,128)
+        F11 = Dropout(0.5)(F11)
         F12 = createFullyConnected(F11,64)
+        F12 = Dropout(0.5)(F12)
         
         return F12
 
@@ -216,9 +218,13 @@ def createEyeLocationModel(input):
 def createMarkerModel(input):
         MM0 = createFullyConnected(input,128)
         MM1 = createFullyConnected(MM0,256)
+        MM1 = Dropout(0.5)(MM1)
         MM2 = createFullyConnected(MM1,512)
+        MM2 = Dropout(0.5)(MM2)
         MM3 = createFullyConnected(MM2,256)
+        MM3 = Dropout(0.5)(MM3)
         MM4 = createFullyConnected(MM3,128)
+        MM4 = Dropout(0.5)(MM4)
         return MM4
 
 def initializeModel():
@@ -227,7 +233,7 @@ def initializeModel():
         #Defining input here
         leftEyeInput = Input(shape=(224,224,3,))
         rightEyeInput = Input(shape=(224,224,3,))
-        #faceInput = Input(shape=(224,224,3,))
+        faceInput = Input(shape=(224,224,3,))
 #        faceGridInput = Input(shape=(6400,))
 #        EyeLocationInput = Input(shape=(8,))
         MarkerInput = Input(shape=(10,))
@@ -235,21 +241,23 @@ def initializeModel():
         ### eye models
         leftEyeData = createEyeModelV2(leftEyeInput)
         rightEyeData= createEyeModelV2(rightEyeInput)
-        #faceData = createFaceModelV2(faceInput)
+        faceData = createFaceModelV2(faceInput)
 #        faceGridData=createFaceGridModel(faceGridInput)
         markerData = createMarkerModel(MarkerInput)
         
         EyeMerge =  Concatenate(axis=1)([leftEyeData,rightEyeData])
         EyeFc1  = createFullyConnected(EyeMerge,128)
+        EyeFc1  = Dropout(0.5)(EyeFc1)
 
         
         #Combining left & right eye face and faceGrid
-        dataLRMerge = Concatenate(axis=1)([EyeFc1,markerData])
-        #dataLRMerge = Concatenate(axis=1)([EyeFc1,faceData,markerData])
+        #dataLRMerge = Concatenate(axis=1)([EyeFc1,markerData])
+        dataLRMerge = Concatenate(axis=1)([EyeFc1,faceData,markerData])
         dataFc1 = createFullyConnected(dataLRMerge,128)
+        dataFc1 = Dropout(0.5)(dataFc1)
         finalOutput = createFullyConnected(dataFc1,2,activation = 'linear')
 
 
         #Return the fully constructed model
-        return Model(inputs = [leftEyeInput, rightEyeInput,  MarkerInput], outputs = finalOutput)
-        #return Model(inputs = [leftEyeInput, rightEyeInput, faceInput, MarkerInput], outputs = finalOutput)
+        #return Model(inputs = [leftEyeInput, rightEyeInput,  MarkerInput], outputs = finalOutput)
+        return Model(inputs = [leftEyeInput, rightEyeInput, faceInput, MarkerInput], outputs = finalOutput)

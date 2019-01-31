@@ -470,7 +470,7 @@ class DataPreProcessor(Sequence):
                                 marker[5]=marker[5]+80
                                 marker[7]=marker[7]+80
                                 marker[9]=marker[9]+80
-                        else:
+                        elif(image.shape[0]<image.shape[1]):
                                 marker[0]=marker[0]+80
                                 marker[2]=marker[2]+80
                                 marker[4]=marker[4]+80
