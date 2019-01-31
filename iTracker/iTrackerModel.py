@@ -129,8 +129,8 @@ def createEyeModelV2(input):
         ## bottleneck block
         F5  = createBottleneck(input=F4,input_channel=128,output_channel=128,kernelSize=3,stride=1,expansion=1,padding='same')          #128@27x27  -->> 128@27x27
         F6 = createMaxPool(F5)                       #128@27x27  -->> 128@13x13
-        F7  = createBottleneck(input=F6,input_channel=128,output_channel=256,kernelSize=3,stride=2,expansion=6,padding='same')          #128@13x13  -->> 128@7x7
-        F8  = createBottleneck(input=F7,input_channel=256,output_channel=512,kernelSize=3,stride=1,expansion=6,padding='same')          #256@7x7  -->> 512@7x7
+        F7  = createBottleneck(input=F6,input_channel=128,output_channel=256,kernelSize=3,stride=2,expansion=1,padding='same')          #128@13x13  -->> 128@7x7
+        F8  = createBottleneck(input=F7,input_channel=256,output_channel=512,kernelSize=3,stride=1,expansion=1,padding='same')          #256@7x7  -->> 512@7x7
         F9  = createMaxPool(F8)                      #512@7x7  -->> 512@3x3
         F10 = Flatten()(F9)
                 
@@ -145,8 +145,8 @@ def createFaceModelV2(input):
         ## bottleneck block
         F5  = createBottleneck(input=F4,input_channel=128,output_channel=128,kernelSize=3,stride=1,expansion=1,padding='same')          #128@27x27  -->> 128@27x27
         F6 = createMaxPool(F5)                       #128@27x27  -->> 128@13x13
-        F7  = createBottleneck(input=F6,input_channel=128,output_channel=256,kernelSize=3,stride=2,expansion=6,padding='same')          #128@13x13  -->> 128@7x7
-        F8  = createBottleneck(input=F7,input_channel=256,output_channel=512,kernelSize=3,stride=1,expansion=6,padding='same')          #256@7x7  -->> 512@7x7
+        F7  = createBottleneck(input=F6,input_channel=128,output_channel=256,kernelSize=3,stride=2,expansion=1,padding='same')          #128@13x13  -->> 128@7x7
+        F8  = createBottleneck(input=F7,input_channel=256,output_channel=512,kernelSize=3,stride=1,expansion=1,padding='same')          #256@7x7  -->> 512@7x7
         F9  = createMaxPool(F8)                      #512@7x7  -->> 512@3x3
         F10 = Flatten()(F9)
 
@@ -227,7 +227,7 @@ def initializeModel():
         #Defining input here
         leftEyeInput = Input(shape=(224,224,3,))
         rightEyeInput = Input(shape=(224,224,3,))
-        faceInput = Input(shape=(224,224,3,))
+        #faceInput = Input(shape=(224,224,3,))
 #        faceGridInput = Input(shape=(6400,))
 #        EyeLocationInput = Input(shape=(8,))
         MarkerInput = Input(shape=(10,))
@@ -235,7 +235,7 @@ def initializeModel():
         ### eye models
         leftEyeData = createEyeModelV2(leftEyeInput)
         rightEyeData= createEyeModelV2(rightEyeInput)
-        faceData = createFaceModelV2(faceInput)
+        #faceData = createFaceModelV2(faceInput)
 #        faceGridData=createFaceGridModel(faceGridInput)
         markerData = createMarkerModel(MarkerInput)
         
@@ -244,10 +244,12 @@ def initializeModel():
 
         
         #Combining left & right eye face and faceGrid
-        dataLRMerge = Concatenate(axis=1)([EyeFc1,faceData,markerData])
+        dataLRMerge = Concatenate(axis=1)([EyeFc1,markerData])
+        #dataLRMerge = Concatenate(axis=1)([EyeFc1,faceData,markerData])
         dataFc1 = createFullyConnected(dataLRMerge,128)
         finalOutput = createFullyConnected(dataFc1,2,activation = 'linear')
 
 
         #Return the fully constructed model
-        return Model(inputs = [leftEyeInput, rightEyeInput, faceInput, MarkerInput], outputs = finalOutput)
+        return Model(inputs = [leftEyeInput, rightEyeInput,  MarkerInput], outputs = finalOutput)
+        #return Model(inputs = [leftEyeInput, rightEyeInput, faceInput, MarkerInput], outputs = finalOutput)

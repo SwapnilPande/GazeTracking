@@ -730,18 +730,18 @@ class DataPreProcessor(Sequence):
                 labelsBatch = self.getLabels(framesToRetrieve)
                 if(not self.debug):
                         return {
-                                                'input_3' : faceBatch, 
+                                                #'input_3' : faceBatch, 
                                                 'input_1' : leftEyeBatch, 
                                                 'input_2' : rightEyeBatch, 
-                                                'input_4' : markerBatch
+                                                'input_3' : markerBatch
                                         }, labelsBatch#, metaBatch
                 else:
                         metaBatch = np.array(framesToRetrieve)
                         return {
-                                                'input_3' : faceBatch, 
+                                                #'input_3' : faceBatch, 
                                                 'input_1' : leftEyeBatch, 
                                                 'input_2' : rightEyeBatch, 
-                                                'input_4' : markerBatch
+                                                'input_3' : markerBatch
                                         }, labelsBatch, metaBatch
 
 

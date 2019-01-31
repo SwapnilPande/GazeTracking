@@ -170,8 +170,8 @@ if __name__ == '__main__':
         #GppValidate = GDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         #ppValidate = DataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         ppValidate = MTCNNDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
-        #CaliTrain = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadValidateInMemory)
-        #CaliValidate = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
+        CaliTrain = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadValidateInMemory)
+        CaliValidate = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         ppTest = MTCNNDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
         #GppTest =  GDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
         
@@ -305,6 +305,7 @@ if __name__ == '__main__':
         #################################### TRAINING MODEL ###################################
         print("")
         print("Beginning Training...")
+        
         trainModel().fit_generator(
                         ppTrain, 
                         epochs = numEpochs, 
@@ -317,16 +318,6 @@ if __name__ == '__main__':
                 )
 
         '''
-        trainModel().fit_generator(
-                CaliTrain, 
-                epochs = numEpochs, 
-                validation_data = CaliValidate, 
-                callbacks = callbacks,
-                initial_epoch = initialEpoch,
-                workers = numWorkers,
-                max_queue_size = queueSize,
-                shuffle=True
-        )
         
         for i in range(100):
                 start_epoch = 1000+i
@@ -334,7 +325,7 @@ if __name__ == '__main__':
                 trainModel().fit_generator(
                         ppTrain, 
                         epochs = stop_epoch,
-                        steps_per_epoch = 50,
+                        #steps_per_epoch = 1500,
                         validation_data = CaliValidate, 
                         callbacks = callbacks,
                         initial_epoch = start_epoch,
@@ -342,8 +333,8 @@ if __name__ == '__main__':
                         max_queue_size = queueSize,
                         shuffle=True
                 )
-                start_epoch = 2000+10*i
-                stop_epoch = start_epoch+10
+                start_epoch = 2000+5*i
+                stop_epoch = start_epoch+5
                 trainModel().fit_generator(
                         CaliTrain, 
                         epochs = stop_epoch, 
