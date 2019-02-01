@@ -170,8 +170,8 @@ if __name__ == '__main__':
         #GppValidate = GDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         #ppValidate = DataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         ppValidate = MTCNNDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
-        #CaliTrain = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadValidateInMemory)
-        #CaliValidate = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
+        CaliTrain = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadValidateInMemory)
+        CaliValidate = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         ppTest = MTCNNDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
         #GppTest =  GDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
         
@@ -217,11 +217,11 @@ if __name__ == '__main__':
                 if(useMultiGPU):
                         with tf.device("/cpu:0"):
                                 #This is the model to be saved
-                                iTrackerModelOriginal = iTrackerModel.initializeModel() #Retrieve iTracker Model
+                                iTrackerModelOriginal = iTrackerModel.initializeModel_lambda() #Retrieve iTracker Model
                         iTrackerModel =ModelMGPU(iTrackerModelOriginal, numGPU) 
                         print("Using " + str(numGPU) + " GPUs")
                 else:
-                        iTrackerModel = iTrackerModel.initializeModel() #Retrieve iTracker Model
+                        iTrackerModel = iTrackerModel.initializeModel_lambda() #Retrieve iTracker Model
                         print("Using 1 GPU")
 
 
@@ -319,13 +319,13 @@ if __name__ == '__main__':
 
         '''
         
-        for i in range(100):
+        for i in range(200):
                 start_epoch = 1000+i
                 stop_epoch = start_epoch+1
                 trainModel().fit_generator(
                         ppTrain, 
                         epochs = stop_epoch,
-                        #steps_per_epoch = 1500,
+                        steps_per_epoch = 3000,
                         validation_data = CaliValidate, 
                         callbacks = callbacks,
                         initial_epoch = start_epoch,
@@ -357,7 +357,7 @@ if __name__ == '__main__':
                         max_queue_size = queueSize,
                         shuffle=True
                 )
-        '''
+                '''
         #Evaluate model here
         testLoss = iTrackerModel.evaluate_generator(
                 ppTest,

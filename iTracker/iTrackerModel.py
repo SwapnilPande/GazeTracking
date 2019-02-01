@@ -1,10 +1,11 @@
 #Import necessary layers for model
-from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D,Activation,SeparableConv2D,AveragePooling2D,Flatten,DepthwiseConv2D,ReLU,Dropout
+from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D,Activation,SeparableConv2D,AveragePooling2D,Flatten,DepthwiseConv2D,ReLU,Dropout,Lambda
 #Import initializers for weights and biases
 from keras.initializers import Zeros, RandomNormal
 from keras.models import Model
 from keras.layers.normalization import BatchNormalization
 import numpy as np
+import keras.backend as K
 
 ########################## Function definitions for defining model ##########################
 def randNormKernelInitializer():
@@ -256,6 +257,52 @@ def initializeModel():
         dataFc1 = createFullyConnected(dataLRMerge,128)
         dataFc1 = Dropout(0.5)(dataFc1)
         finalOutput = createFullyConnected(dataFc1,2,activation = 'linear')
+
+
+        #Return the fully constructed model
+        #return Model(inputs = [leftEyeInput, rightEyeInput,  MarkerInput], outputs = finalOutput)
+        return Model(inputs = [leftEyeInput, rightEyeInput, faceInput, MarkerInput], outputs = finalOutput)
+
+def myFun(x):
+        return K.sin(x[0]+x[1])/K.relu( x=K.cos(x[0]+x[1]),threshold=0.01)*x[2]+x[3]
+
+def myCos(x):
+        return K.cos(x[0]+x[1])
+
+def initializeModel_lambda():
+        
+        print("Initializing Model")
+        #Defining input here
+        leftEyeInput = Input(shape=(224,224,3,))
+        rightEyeInput = Input(shape=(224,224,3,))
+        faceInput = Input(shape=(224,224,3,))
+#        faceGridInput = Input(shape=(6400,))
+#        EyeLocationInput = Input(shape=(8,))
+        MarkerInput = Input(shape=(10,))
+        
+        ### eye models
+        leftEyeData = createEyeModelV2(leftEyeInput)
+        rightEyeData= createEyeModelV2(rightEyeInput)
+        faceData = createFaceModelV2(faceInput)
+#        faceGridData=createFaceGridModel(faceGridInput)
+        markerData = createMarkerModel(MarkerInput)
+        
+        EyeMerge =  Concatenate(axis=1)([leftEyeData,rightEyeData])
+        EyeFc1  = createFullyConnected(EyeMerge,128)
+        EyeFc1  = Dropout(0.5)(EyeFc1)
+        EyePose = createFullyConnected(EyeFc1,2)#,activation = 'linear')
+
+        FacePose = createFullyConnected(faceData,2)#,activation = 'linear')
+        Bias     = createFullyConnected(markerData,2,activation = 'linear')
+        Distance = createFullyConnected(markerData,1)
+        
+        #Combining left & right eye face and faceGrid
+        #dataLRMerge = Concatenate(axis=1)([EyeFc1,markerData])
+        #cosOutput = Lambda(myCos)([EyePose,FacePose])
+        #cosRelu   = ReLU(threshold=0.01)(cosOutput)
+                                  
+        
+        finalOutput = Lambda(myFun)([EyePose,FacePose,Distance,Bias])
 
 
         #Return the fully constructed model
