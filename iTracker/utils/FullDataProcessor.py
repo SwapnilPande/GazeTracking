@@ -154,8 +154,8 @@ class DataPreProcessor(Sequence):
                 if(not(dataset in ['test', 'validate', 'train','sample','Calibration'])):
                         raise ValueError("Invalid dataset. Dataset can only be test, train, or validate.")
                 #Creating variables containing paths to data dirs
-                #self.tempDataDir = pathTemp + '/temp/' + dataset
-                self.tempDataDir = pathTemp + '/Calibration/'+ dataset
+                self.MitDataDir = pathTemp + '/temp/' + dataset
+                self.CaliDataDir = pathTemp + '/Calibration/'+ dataset
                 #Stores the number of subjects
                 self.numSubjects =  len(os.listdir(self.tempDataDir))
 
@@ -167,10 +167,10 @@ class DataPreProcessor(Sequence):
                 else:
                         print('Building index and collecting metadata for ' + dataset + ' dataset')
                 if(loadAllData):
-                        self.frameIndex, self.metadata, self.frames = self.indexData(self.tempDataDir, loadAllData)
+                        self.frameIndex, self.metadata, self.frames = self.indexData(self.MitDataDir,,self.CaliDataDir, loadAllData)
                         self.loadedData = True
                 else:
-                        self.frameIndex, self.metadata = self.indexData(self.tempDataDir, loadAllData)
+                        self.frameIndex, self.metadata = self.indexData(self.MitDataDir, self.CaliDataDir,loadAllData)
 
                 #Get Number of frames
                 self.numFrames = len(self.frameIndex)
@@ -213,9 +213,7 @@ class DataPreProcessor(Sequence):
         # Returns:
         # frameIndex - A set containing the filepaths to all valid frames in the dataset
         # metadata = A dictionary containing the metadata for each frame
-        def indexData(self, path, loadAllData):
-                #Getting unzipped subject dirs
-                subjectDirs = os.listdir(path=path)
+        def indexData(self, MitPath,CaliPath, loadAllData):
 
                 #Declare index lists and metadata dictionary to return
                 if(loadAllData):
@@ -224,12 +222,16 @@ class DataPreProcessor(Sequence):
                 metadata = {}
                 pbar = createProgressBar()
                 frameNum = 0
+                #Getting unzipped subject dirs
+                subjectDirs = os.listdir(path=CaliPath)
+                
                 for subject in pbar(subjectDirs):
-                        subjectPath = path + "/" + subject
+                        width = 0
+                        height = 0
+                        subjectPath = Calipath + "/" + subject
                         #frameNames = self.getFramesJSON(subjectPath)
                         markers,faceboxes,confidence = self.getFaceAndMarkerJson(subjectPath)
                         dotInfo = self.getDotJSON(subjectPath)
-                        # use the first image to set the width and height
                         framePath =subjectPath+"/frames/0.jpg" 
                         image = cv2.imread(framePath)
                         width = image.shape[0]
@@ -237,7 +239,6 @@ class DataPreProcessor(Sequence):
                         for i, ( cf, marker, facebox) in enumerate(zip(confidence,
                                                                        markers,
                                                                        faceboxes)):
-                                
                                 if (cf>0.90) and marker !=[]:
                                         leftEye,rightEye,face = self.getEyesFromMarker(marker,facebox,width,height)
                                         
@@ -267,12 +268,80 @@ class DataPreProcessor(Sequence):
                                         #Build the dictionary containing the metadata for a frame
                                                         
                                         frameNum += 1
+                subjectDirs = os.listdir(path=MitPath)
+                for subject in pbar(subjectDirs):
+                        subjectPath = MitPath + "/" + subject 
+                        subjectPathCusSeg = MitPath + "/" + subject +'/mtcnn_segmentation'
+                        #Stores the name of the frame files in the frames dir
+                        frameNames = self.getFramesJSON(subjectPathCusSeg)
+                        #Collecting metadata about face, eyes, facegrid, labels
+                        markers,faceboxes,confidence = self.getFaceAndMarkerJson(subjectPathCusSeg)
+                        #screen info
+                        screenH,screenW = self.getScreenJson(subjectPath)
+                        dotInfo = self.getDotJSON(subjectPathCusSeg)
+                        
+
+                        #Iterate over frames for the current subject
+                        for i, (frame, cf, marker, facebox,scH,scW) in enumerate(zip(frameNames,
+                                                                                     confidence,
+                                                                                     markers,
+                                                                                     faceboxes,
+                                                                                     screenH,
+                                                                                     screenW)):
+                                if (cf>0.90) and marker !=[]:
+                                        leftEye=[]
+                                        rightEye=[]
+                                        face=[]
+                                        if (scH>scW):
+                                                width = 480
+                                                height=640
+                                        else:
+                                                width =640
+                                                height=480
+                                        leftEye,rightEye,face = self.getEyesFromMarker(marker,facebox,width,height)
+                                #Check if cur frame is valid
+                                if(cf>0.90)and marker !=[] and max(marker)<640 and min(marker)>0 and leftEye[2]>10 and leftEye[3]>10 and rightEye[2]>10 and rightEye[3]>10 and face[2]>10 and face[3]>10 and rightEye[0]<600 and rightEye[1]<600 and rightEye[0]>0 and rightEye[1]>0 and leftEye[0]>0 and leftEye[0]<600 and leftEye[1]>0 and leftEye[1]<600:
+                                        
+                                        #Generate path for frame
+                                        framePath = subjectPath + "/frames/" + frame
+                                        #Write file path to index
+                                        if(not loadAllData):
+                                                frameIndex.append(framePath)
+                                                metadata[framePath] = {
+                                                        'face' : {'X' : face[0], 'Y': face[1], 'W' : face[2], 'H'  : face[3]},
+                                                        'leftEye' : {'X' : leftEye[0], 'Y': leftEye[1], 'W' : leftEye[2], 'H'  : leftEye[3]},
+                                                        'rightEye' : {'X' : rightEye[0], 'Y': rightEye[1], 'W' : rightEye[2], 'H'  : rightEye[3]},
+                                                        'faceGrid' : {},
+                                                        'marker': marker,
+                                                        'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
+                                                }
+                                        else:
+                                                frameIndex.append(frameNum)
+                                                with open(framePath, 'rb') as f:
+                                                        frames.append(np.fromstring(f.read(), dtype=np.uint8))
+                                                metadata[frameNum] = {
+                                                        'face' : {'X' : face[0], 'Y': face[1], 'W' : face[2], 'H'  : face[3]},
+                                                        'leftEye' : {'X' : leftEye[0], 'Y': leftEye[1], 'W' : leftEye[2], 'H'  : leftEye[3]},
+                                                        'rightEye' : {'X' : rightEye[0], 'Y': rightEye[1], 'W' : rightEye[2], 'H'  : rightEye[3]},
+                                                        'faceGrid' : {},
+                                                        'marker': marker,
+                                                        'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
+                                                }
+                                        #Build the dictionary containing the metadata for a frame
+                                        
+                                        frameNum += 1
+
+                
 
                 if(loadAllData):
                         return frameIndex, metadata, frames
                 else:
                         return frameIndex, metadata
-
+                
+        def getScreenJson(self,subjectPath):
+                with open(subjectPath+'/screen.json') as f:
+                        screen = json.load(f)
+                return screen['H'],screen['W']
         def getEyesFromMarker(self,marker,facebox,width=480,height=640,factor=0.2):
                 leftCenter = [marker[0],marker[1]]
                 rightCenter= [marker[2],marker[3]]
