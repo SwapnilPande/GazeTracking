@@ -152,9 +152,9 @@ def createFaceModelV2(input):
         F10 = Flatten()(F9)
 
         F11 = createFullyConnected(F10,128)
-        F11 = Dropout(0.5)(F11)
+        #F11 = Dropout(0.5)(F11)
         F12 = createFullyConnected(F11,64)
-        F12 = Dropout(0.5)(F12)
+        #F12 = Dropout(0.5)(F12)
         
         return F12
 
@@ -264,7 +264,7 @@ def initializeModel():
         return Model(inputs = [leftEyeInput, rightEyeInput, faceInput, MarkerInput], outputs = finalOutput)
 
 def myFun(x):
-        return K.sin(x[0]+x[1])/K.relu( x=K.cos(x[0]+x[1]),threshold=0.01)*x[2]+x[3]
+        return (K.sin(x[0]-1.4)/K.cos(x[0]-1.4))*(x[1]+10.0)+x[2]
 
 def myCos(x):
         return K.cos(x[0]+x[1])
@@ -289,12 +289,17 @@ def initializeModel_lambda():
         
         EyeMerge =  Concatenate(axis=1)([leftEyeData,rightEyeData])
         EyeFc1  = createFullyConnected(EyeMerge,128)
-        EyeFc1  = Dropout(0.5)(EyeFc1)
-        EyePose = createFullyConnected(EyeFc1,2)#,activation = 'linear')
+        #EyeFc1  = Dropout(0.5)(EyeFc1)
+        #EyePose = createFullyConnected(EyeFc1,2)#,activation = 'linear')
 
-        FacePose = createFullyConnected(faceData,2)#,activation = 'linear')
+        EyeFaceMerge =  Concatenate(axis=1)([EyeFc1,faceData])
+        EyeFaceFc1  = createFullyConnected(EyeFaceMerge,128)
+        
+        EyeGaze = createFullyConnected(EyeFaceFc1,2,activation = 'linear')
+        EyeGaze = ReLU(threshold = 0.0,max_value =2.8 )(EyeGaze)  #-80 deg to 80 deg 
         Bias     = createFullyConnected(markerData,2,activation = 'linear')
-        Distance = createFullyConnected(markerData,1)
+        Distance = createFullyConnected(markerData,1,activation = 'linear')
+        Distance = ReLU(threshold = 0.0,max_value = 200.0)(Distance)
         
         #Combining left & right eye face and faceGrid
         #dataLRMerge = Concatenate(axis=1)([EyeFc1,markerData])
@@ -302,7 +307,7 @@ def initializeModel_lambda():
         #cosRelu   = ReLU(threshold=0.01)(cosOutput)
                                   
         
-        finalOutput = Lambda(myFun)([EyePose,FacePose,Distance,Bias])
+        finalOutput = Lambda(myFun)([EyeGaze,Distance,Bias])
 
 
         #Return the fully constructed model
