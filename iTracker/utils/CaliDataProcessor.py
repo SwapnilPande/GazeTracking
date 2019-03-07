@@ -229,18 +229,21 @@ class DataPreProcessor(Sequence):
                         #frameNames = self.getFramesJSON(subjectPath)
                         markers,faceboxes,confidence = self.getFaceAndMarkerJson(subjectPath)
                         dotInfo = self.getDotJSON(subjectPath)
+                        faceCheckResults = self.getCheckFaceJson(subjectPath)
                         # use the first image to set the width and height
                         framePath =subjectPath+"/frames/0.jpg" 
                         image = cv2.imread(framePath)
                         width = image.shape[0]
                         height= image.shape[1]
                         for i, ( cf, marker, facebox) in enumerate(zip(confidence,
-                                                                       markers,
-                                                                       faceboxes)):
+                                                                           markers,
+                                                                           faceboxes)):
+                                leftEye,rightEye,face = self.getEyesFromMarker(marker,facebox,width,height)
+                                fcr = faceCheckResults[str(i)]
+                                if(cf>0.90)and marker !=[] and max(marker)<640 and min(marker)>0 and leftEye[2]>10 and leftEye[3]>10 and rightEye[2]>10 and rightEye[3]>10 and face[2]>10 and face[3]>10 and rightEye[0]<600 and rightEye[1]<600 and rightEye[0]>0 and rightEye[1]>0 and leftEye[0]>0 and leftEye[0]<600 and leftEye[1]>0 and leftEye[1]<600 and fcr['rightStatus']=='o' and fcr['leftStatus']=='o':
                                 
-                                if (cf>0.90) and marker !=[]:
-                                        leftEye,rightEye,face = self.getEyesFromMarker(marker,facebox,width,height)
                                         
+                                
                                         framePath = subjectPath+"/frames/"+str(i)+".jpg"
                                         if(not loadAllData):
                                                 frameIndex.append(framePath)
@@ -303,7 +306,10 @@ class DataPreProcessor(Sequence):
                 for i, (number) in  enumerate( facebox):
                         facebox[i]=min(640,max(0,number))
                 return facebox
-
+        def getCheckFaceJson(self,subjectPath):
+                with open (subjectPath+'/faceCheckResult.json') as f:
+                        faceCheckResult = json.load(f)
+                return faceCheckResult
         def getBB(self,box):
                 topx = min(box[0],box[2])
                 topy = min(box[1],box[3])

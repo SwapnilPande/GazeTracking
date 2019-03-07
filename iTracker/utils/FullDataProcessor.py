@@ -145,7 +145,7 @@ class DataPreProcessor(Sequence):
         #                       each dictionary contains 5 keys: face, leftEye, rightEye, faceGrid, and label
         #                       each of these keys refers to a dictionary containing the necessary metadata to describe feature
         # sampledFrames - stores sets that described the data that has already been sampled in the current epoch
-        def __init__(self, pathTemp, batchSize, dataset, args, debug = False, loadAllData = False):
+        def __init__(self, pathTemp, batchSize, dataset, args, debug = False, loadAllData = False,duplicate = 10):
                 self.args = args #Stores all command line arguments
 
                 self.loadedData = False
@@ -157,8 +157,8 @@ class DataPreProcessor(Sequence):
                 self.MitDataDir = pathTemp + '/temp/' + dataset
                 self.CaliDataDir = pathTemp + '/Calibration/'+ dataset
                 #Stores the number of subjects
-                self.numSubjects =  len(os.listdir(self.tempDataDir))
-
+                self.numSubjects =  len(os.listdir(self.MitDataDir))
+                self.numSubjects +=  len(os.listdir(self.CaliDataDir))
                 #Build index of metadata for each frame of dataset
                 #Stores the paths to all valid frames
                 #Note: path is relative to working dir, not training data dir
@@ -167,10 +167,10 @@ class DataPreProcessor(Sequence):
                 else:
                         print('Building index and collecting metadata for ' + dataset + ' dataset')
                 if(loadAllData):
-                        self.frameIndex, self.metadata, self.frames = self.indexData(self.MitDataDir,,self.CaliDataDir, loadAllData)
+                        self.frameIndex, self.metadata, self.frames = self.indexData(self.MitDataDir,self.CaliDataDir, loadAllData,dup=duplicate)
                         self.loadedData = True
                 else:
-                        self.frameIndex, self.metadata = self.indexData(self.MitDataDir, self.CaliDataDir,loadAllData)
+                        self.frameIndex, self.metadata = self.indexData(self.MitDataDir, self.CaliDataDir,loadAllData,dup=duplicate)
 
                 #Get Number of frames
                 self.numFrames = len(self.frameIndex)
@@ -213,48 +213,53 @@ class DataPreProcessor(Sequence):
         # Returns:
         # frameIndex - A set containing the filepaths to all valid frames in the dataset
         # metadata = A dictionary containing the metadata for each frame
-        def indexData(self, MitPath,CaliPath, loadAllData):
+        def indexData(self, MitPath,CaliPath, loadAllData,dup):
 
                 #Declare index lists and metadata dictionary to return
                 if(loadAllData):
                         frames = []
                 frameIndex = []
                 metadata = {}
-                pbar = createProgressBar()
+
+                Mitpbar = createProgressBar()
                 frameNum = 0
                 #Getting unzipped subject dirs
                 subjectDirs = os.listdir(path=CaliPath)
                 
-                for subject in pbar(subjectDirs):
+                Calipbar = createProgressBar()
+                for subject in Calipbar(subjectDirs):
                         width = 0
                         height = 0
-                        subjectPath = Calipath + "/" + subject
+                        subjectPath = CaliPath + "/" + subject
                         #frameNames = self.getFramesJSON(subjectPath)
                         markers,faceboxes,confidence = self.getFaceAndMarkerJson(subjectPath)
                         dotInfo = self.getDotJSON(subjectPath)
                         framePath =subjectPath+"/frames/0.jpg" 
                         image = cv2.imread(framePath)
+                        faceCheckResults = self.getCheckFaceJson(subjectPath)
                         width = image.shape[0]
                         height= image.shape[1]
-                        for i, ( cf, marker, facebox) in enumerate(zip(confidence,
-                                                                       markers,
-                                                                       faceboxes)):
-                                if (cf>0.90) and marker !=[]:
-                                        leftEye,rightEye,face = self.getEyesFromMarker(marker,facebox,width,height)
-                                        
+                        for i, ( cf, marker, facebox,fcr) in enumerate(zip(confidence,
+                                                                           markers,
+                                                                           faceboxes,
+                                                                           faceCheckResults)):
+                                leftEye,rightEye,face = self.getEyesFromMarker(marker,facebox,width,height)
+                                if(cf>0.98)and marker !=[] and max(marker)<640 and min(marker)>0 and leftEye[2]>10 and leftEye[3]>10 and rightEye[2]>10 and rightEye[3]>10 and face[2]>10 and face[3]>10 and rightEye[0]<600 and rightEye[1]<600 and rightEye[0]>0 and rightEye[1]>0 and leftEye[0]>0 and leftEye[0]<600 and leftEye[1]>0 and leftEye[1]<600 and fcr['rightStatus']=='o' and fcr['leftStatus']=='o':
+                                                
                                         framePath = subjectPath+"/frames/"+str(i)+".jpg"
                                         if(not loadAllData):
                                                 frameIndex.append(framePath)
-                                                metadata[framePath] = {
-                                                        'face' :self.getBB(face),
-                                                        'leftEye' : self.getBB(leftEye),
-                                                        'rightEye' : self.getBB(rightEye),
+                                                metadata[frameNum] = {
+                                                        'face' : {'X' : face[0], 'Y': face[1], 'W' : face[2], 'H'  : face[3]},
+                                                        'leftEye' : {'X' : leftEye[0], 'Y': leftEye[1], 'W' : leftEye[2], 'H'  : leftEye[3]},
+                                                        'rightEye' : {'X' : rightEye[0], 'Y': rightEye[1], 'W' : rightEye[2], 'H'  : rightEye[3]},
                                                         'faceGrid' : {},
                                                         'marker': marker,
-                                                        'label': self.getLabelfromCaliPoints(caliPoint)
+                                                        'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
                                                 }
                                         else:
-                                                frameIndex.append(frameNum)
+                                                for dp in range(dup):
+                                                        frameIndex.append(frameNum)
                                                 with open(framePath, 'rb') as f:
                                                         frames.append(np.fromstring(f.read(), dtype=np.uint8))
                                                         metadata[frameNum] = {
@@ -265,11 +270,11 @@ class DataPreProcessor(Sequence):
                                                                 'marker': marker,
                                                                 'label': {'XCam' : dotInfo['XCam'][i], 'YCam' : dotInfo['YCam'][i]}
                                                         }
-                                        #Build the dictionary containing the metadata for a frame
-                                                        
+                                                        #Build the dictionary containing the metadata for a frame
+                                                                
                                         frameNum += 1
                 subjectDirs = os.listdir(path=MitPath)
-                for subject in pbar(subjectDirs):
+                for subject in Mitpbar(subjectDirs):
                         subjectPath = MitPath + "/" + subject 
                         subjectPathCusSeg = MitPath + "/" + subject +'/mtcnn_segmentation'
                         #Stores the name of the frame files in the frames dir
@@ -372,7 +377,10 @@ class DataPreProcessor(Sequence):
                 for i, (number) in  enumerate( facebox):
                         facebox[i]=min(640,max(0,number))
                 return facebox
-
+        def getCheckFaceJson(self,subjectPath):
+                with open (subjectPath+'/faceCheckResult.json') as f:
+                        faceCheckResult = json.load(f)
+                return faceCheckResult
         def getBB(self,box):
                 topx = min(box[0],box[2])
                 topy = min(box[1],box[3])
