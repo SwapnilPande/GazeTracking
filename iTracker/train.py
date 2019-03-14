@@ -6,6 +6,7 @@ if __name__ == '__main__':
         parser.add_argument("execution_name", help="Name to identify the train execution - used to name the log files")
         parser.add_argument("-d", "--default", help="Use default options when configuring execution", action='store_true')
         args =  parser.parse_args()
+        use_dp = False
 
         #Run pre-train config
         try:
@@ -30,6 +31,10 @@ if __name__ == '__main__':
         from keras.utils.training_utils import multi_gpu_model
         from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler #Import callbacks for training
 
+        #from privacy.analysis.rdp_accountant import compute_rdp
+        #from privacy.analysis.rdp_accountant import get_privacy_spent
+        #from privacy.optimizers.dp_optimizer import DPGradientDescentOptimizer
+        #from privacy.optimizers.gaussian_query import GaussianAverageQuery
         #Tensorflow device
         import tensorflow as tf
 
@@ -164,9 +169,9 @@ if __name__ == '__main__':
 
         #Initialize Data pre-processor here
         print('loading training data')
-        CaliTrain = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadValidateInMemory)
-        CaliValidate = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
-        ppTrain = MTCNNDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
+        #CaliTrain = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadValidateInMemory)
+        #CaliValidate = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
+        #ppTrain = MTCNNDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
         ppValidate = MTCNNDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         
         
@@ -215,7 +220,22 @@ if __name__ == '__main__':
         ##################################### IMPORT MODEL ####################################
         #Define Stochastic Gradient descent optimizer
         def getSGDOptimizer():
-                return SGD(lr=lrSchedule['0'], momentum=momentum, decay=decay)
+                if use_dp:
+                        dp_average_query = GaussianAverageQuery(
+                                1.0,
+                                1.0*1.1,
+                                256)
+                        optimizer = DPGradientDescentOptimizer(
+                                dp_average_query,
+                                256,
+                                learning_rate=0.001,
+                                unroll_microbatches=True)
+                        return optimizer
+                else:
+                        
+                        return SGD(lr=lrSchedule['0'], momentum=momentum, decay=decay)
+
+        
         if(not loadModel): #Build and compile ML model, training model from scratch
                 if(useMultiGPU):
                         with tf.device("/cpu:0"):
@@ -321,7 +341,7 @@ if __name__ == '__main__':
                         shuffle=True
                 )
 
-       
+        '''
         trainModel().fit_generator(
                         ppValidate, 
                         epochs = numEpochs, 
@@ -375,7 +395,7 @@ if __name__ == '__main__':
                         shuffle=True
                 )
         
-               
+        '''
         #Evaluate model here
         testLoss = iTrackerModel.evaluate_generator(
                 ppTest,
