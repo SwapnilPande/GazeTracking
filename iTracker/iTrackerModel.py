@@ -1,12 +1,13 @@
 #Import necessary layers for model
-from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D,Activation,SeparableConv2D,AveragePooling2D,Flatten,DepthwiseConv2D,ReLU,Dropout,Lambda,Add
+from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, Concatenate, Reshape, ZeroPadding2D,Activation,SeparableConv2D,AveragePooling2D,Flatten,DepthwiseConv2D,ReLU,Dropout,Lambda,Add
 #Import initializers for weights and biases
-from keras.initializers import Zeros, RandomNormal
-from keras.models import Model,load_model
-from keras.layers.normalization import BatchNormalization
+from tensorflow.keras.initializers import Zeros, RandomNormal
+from tensorflow.keras.models import Model,load_model
+from tensorflow.keras.layers import BatchNormalization
 import numpy as np
-import keras.backend as K
-
+import tensorflow.keras.backend as K
+import tensorflow_model_optimization as tfmot 
+from tensorflow_model_optimization.sparsity import keras as sparsity
 ########################## Function definitions for defining model ##########################
 def randNormKernelInitializer():
         return RandomNormal(stddev= 0.01)
@@ -21,17 +22,30 @@ def randNormKernelInitializer():
 # stride - Stride taken during convolution
 #
 # Returns a Conv2D object describing the new layer
-def createCv(input, filters, kernelSize, stride,padding='same'):
-        return Conv2D(
-                filters,
-                kernelSize, 
-                strides = stride,
-                activation = None,
-                use_bias = True,
-                kernel_initializer = randNormKernelInitializer(),
-                bias_initializer = 'zeros',
-                padding=padding
-                )(input)
+def createCv(input, filters, kernelSize, stride,padding='same',prune=False,pruning_schedule=None):
+        if prune:
+            return sparsity.prune_low_magnitude(Conv2D(
+                    filters,
+                    kernelSize, 
+                    strides = stride,
+                    activation = None,
+                    use_bias = True,
+                    kernel_initializer = randNormKernelInitializer(),
+                    bias_initializer = 'zeros',
+                    padding=padding
+                    ),pruning_schedule=pruning_schedule)(input)
+        else:
+                
+            return Conv2D(
+                    filters,
+                    kernelSize, 
+                    strides = stride,
+                    activation = None,
+                    use_bias = True,
+                    kernel_initializer = randNormKernelInitializer(),
+                    bias_initializer = 'zeros',
+                    padding=padding
+                    )(input)
 def createDw(input,filters, kernelSize, stride,depth_multiplier=1,padding ='same'):
         return SeparableConv2D(
                 filters,
@@ -61,8 +75,17 @@ def createPadding(input,pad):
         return ZeroPadding2D(padding=pad)(input)
 
 
-def createFullyConnected(input,units, activation = 'relu'):
-        return Dense(
+def createFullyConnected(input,units, activation = 'relu',prune=False,pruning_schedule=None):
+        if prune:
+            return sparsity.prune_low_magnitude(Dense(
+                units,
+                activation = activation,
+                use_bias = True,
+                kernel_initializer = randNormKernelInitializer(),
+                bias_initializer = 'zeros'
+                ),pruning_schedule=pruning_schedule)(input)
+        else:
+            return Dense(
                 units,
                 activation = activation,
                 use_bias = True,
@@ -122,7 +145,7 @@ def createBottleneck(input,input_channel,output_channel,stride,expansion,padding
         return output5
 
 
-def _inverted_res_block(inputs, expansion, stride, filters, block_id, alpha=1,name="left"):
+def _inverted_res_block(inputs, expansion, stride, filters, block_id, alpha=1,name="left",prune=False,pruning_schedule=None):
     in_channels =K.int_shape(inputs)[-1]
     pointwise_filters = int(filters * alpha)
     #pointwise_filters = _make_divisible(pointwise_conv_filters, 8)
@@ -131,7 +154,15 @@ def _inverted_res_block(inputs, expansion, stride, filters, block_id, alpha=1,na
 
     if block_id:
         # Expand
-        x = Conv2D(expansion * in_channels,
+        if prune:
+            x=sparsity.prune_low_magnitude(Conv2D(expansion * in_channels,
+                          kernel_size=1,
+                          padding='same',
+                          use_bias=False,
+                          activation=None,
+                          name=prefix + 'expand'),pruning_schedule=pruning_schedule)(x)
+        else:
+            x = Conv2D(expansion * in_channels,
                           kernel_size=1,
                           padding='same',
                           use_bias=False,
@@ -145,7 +176,15 @@ def _inverted_res_block(inputs, expansion, stride, filters, block_id, alpha=1,na
         prefix = 'expanded_conv_{}'.format(name)
 
     # Depthwise
-    x = DepthwiseConv2D(kernel_size=3,
+    if prune:
+        x=sparsity.prune_low_magnitude(DepthwiseConv2D(kernel_size=3,
+                        strides=stride,
+                        activation=None,
+                        use_bias=False,
+                        padding='same',
+                        name=prefix + 'depthwise'),pruning_schedule=pruning_schedule)(x)
+    else:
+        x = DepthwiseConv2D(kernel_size=3,
                         strides=stride,
                         activation=None,
                         use_bias=False,
@@ -158,7 +197,15 @@ def _inverted_res_block(inputs, expansion, stride, filters, block_id, alpha=1,na
     x = ReLU(6., name=prefix + 'depthwise_relu')(x)
 
     # Project
-    x = Conv2D(pointwise_filters,
+    if prune:
+        x=sparsity.prune_low_magnitude(Conv2D(pointwise_filters,
+               kernel_size=1,
+               padding='same',
+               use_bias=False,
+               activation=None,
+               name=prefix + 'project'),pruning_schedule=pruning_schedule)(x)
+    else:
+        x = Conv2D(pointwise_filters,
                kernel_size=1,
                padding='same',
                use_bias=False,
@@ -171,53 +218,53 @@ def _inverted_res_block(inputs, expansion, stride, filters, block_id, alpha=1,na
         return Add(name=prefix + 'add')([inputs, x])
     return x
 
-def createEyeModelV2_1(name="eye"):
-        EyeInput = Input(shape=(224,224,3,))
+def createEyeModelV2_1(inputs,name="eye",prune=False,pruning_schedule=None):
+        #EyeInput = Input(shape=(224,224,3,))
         ## standard ConV+BN+activation
-        x = createCv(EyeInput,32,5,4,padding='same')  #3@224x224 -->> 32@112x112
+        x = createCv(inputs,32,5,4,padding='same',prune=prune,pruning_schedule=pruning_schedule)  #3@224x224 -->> 32@112x112
         x = createBN(x)
         x = createActivation(x)
         ## bottleneck block
-        x = _inverted_res_block(inputs=x, filters =24 ,stride =1 , expansion =1 , block_id=0,alpha=1,name=name)      #32@112X112 --> 16@112x112
+        x = _inverted_res_block(inputs=x, filters =24 ,stride =1 , expansion =1 , block_id=0,alpha=1,name=name,prune=prune,pruning_schedule=pruning_schedule)      #32@112X112 --> 16@112x112
         
-        x = _inverted_res_block(inputs=x, filters =24 ,stride =2 , expansion =4 , block_id=1,alpha=1,name=name)          #16@112x112 --> 24@56x56
-        x = _inverted_res_block(inputs=x, filters =24 ,stride =1 , expansion =4 , block_id=2,alpha=1,name=name)          #24@56x56 -->24@56x56
+        x = _inverted_res_block(inputs=x, filters =24 ,stride =2 , expansion =4 , block_id=1,alpha=1,name=name,prune=prune,pruning_schedule=pruning_schedule)          #16@112x112 --> 24@56x56
+        x = _inverted_res_block(inputs=x, filters =24 ,stride =1 , expansion =4 , block_id=2,alpha=1,name=name,prune=prune,pruning_schedule=pruning_schedule)          #24@56x56 -->24@56x56
         
-        x = _inverted_res_block(inputs=x, filters =32 ,stride =2 , expansion =4 , block_id=3,alpha=1,name=name)           #24@56x56 --> 32@28x28 
-        x = _inverted_res_block(inputs=x, filters =32 ,stride =1 , expansion =4 , block_id=4,alpha=1,name=name)
+        x = _inverted_res_block(inputs=x, filters =32 ,stride =2 , expansion =4 , block_id=3,alpha=1,name=name,prune=prune,pruning_schedule=pruning_schedule)           #24@56x56 --> 32@28x28 
+        x = _inverted_res_block(inputs=x, filters =32 ,stride =1 , expansion =4 , block_id=4,alpha=1,name=name,prune=prune,pruning_schedule=pruning_schedule)
         #x = _inverted_res_block(inputs=x, filters =32 ,stride =1 , expansion =4 , block_id=5,alpha=1,name=name)
 
-        x = _inverted_res_block(inputs=x, filters =64 ,stride =2 , expansion =4 , block_id=6,alpha=1,name=name)          #32@28x28-->>64@14x14    
-        x = _inverted_res_block(inputs=x, filters =64 ,stride =1 , expansion =4 , block_id=7,alpha=1,name=name)
-        x = _inverted_res_block(inputs=x, filters =64 ,stride =1 , expansion =4 , block_id=8,alpha=1,name=name)
+        x = _inverted_res_block(inputs=x, filters =64 ,stride =2 , expansion =4 , block_id=6,alpha=1,name=name,prune=prune,pruning_schedule=pruning_schedule)          #32@28x28-->>64@14x14    
+        x = _inverted_res_block(inputs=x, filters =64 ,stride =1 , expansion =4 , block_id=7,alpha=1,name=name,prune=prune,pruning_schedule=pruning_schedule)
+        x = _inverted_res_block(inputs=x, filters =64 ,stride =1 , expansion =4 , block_id=8,alpha=1,name=name,prune=prune,pruning_schedule=pruning_schedule)
         #x = _inverted_res_block(inputs=x, filters =64 ,stride =1 , expansion =4 , block_id=9,alpha=1,name=name)
         
-        x = _inverted_res_block(inputs=x, filters =96 ,stride =1 , expansion =4 , block_id=10,alpha=1,name=name)         #64@14x14 --> 96@14x14   
-        x = _inverted_res_block(inputs=x, filters =96 ,stride =1 , expansion =4 , block_id=11,alpha=1,name=name)
+        x = _inverted_res_block(inputs=x, filters =96 ,stride =1 , expansion =4 , block_id=10,alpha=1,name=name,prune=prune,pruning_schedule=pruning_schedule)         #64@14x14 --> 96@14x14   
+        x = _inverted_res_block(inputs=x, filters =96 ,stride =1 , expansion =4 , block_id=11,alpha=1,name=name,prune=prune,pruning_schedule=pruning_schedule)
         #x = _inverted_res_block(inputs=x, filters =96 ,stride =1 , expansion =4 , block_id=12,alpha=1,name=name)
         
-        x = _inverted_res_block(inputs=x, filters =160 ,stride =2 , expansion =4 , block_id=13,alpha=1,name=name)        #96@14x14   --> 160@7x7
-        x = _inverted_res_block(inputs=x, filters =160 ,stride =1 , expansion =4 , block_id=14,alpha=1,name=name)
+        x = _inverted_res_block(inputs=x, filters =160 ,stride =2 , expansion =4 , block_id=13,alpha=1,name=name,prune=prune,pruning_schedule=pruning_schedule)        #96@14x14   --> 160@7x7
+        x = _inverted_res_block(inputs=x, filters =160 ,stride =1 , expansion =4 , block_id=14,alpha=1,name=name,prune=prune,pruning_schedule=pruning_schedule)
         #x = _inverted_res_block(inputs=x, filters =160 ,stride =1 , expansion =4 , block_id=15,alpha=1,name=name)
 
-        x = _inverted_res_block(inputs=x, filters =320 ,stride =1 , expansion =4 , block_id=16,alpha=1,name=name)        #160@7x7 -->>320@7x7
+        x = _inverted_res_block(inputs=x, filters =320 ,stride =1 , expansion =4 , block_id=16,alpha=1,name=name,prune=prune,pruning_schedule=pruning_schedule)        #160@7x7 -->>320@7x7
 
-        x= createCv(x,1280,1,1,padding='same')                                                                 #1280@7x7
+        x= createCv(x,1280,1,1,padding='same',prune=prune,pruning_schedule=pruning_schedule)                                                                 #1280@7x7
         x= createBN(x)
         x= ReLU6(x)
 
         x=createMaxPool(x,size=4)
 
         x=Flatten()(x)
+        return x
+        #return Model(inputs=EyeInput,outputs = x)
+def createFaceModelV2_1(inputs,prune=False,pruning_schedule=None):
 
-        return Model(inputs=EyeInput,outputs = x)
-def createFaceModelV2_1(inputs):
-
-        faceModel =  createEyeModelV2_1(name="face")
-        x = faceModel(inputs)
-        x = createFullyConnected(x,128)
+        x =  createEyeModelV2_1(inputs=inputs,name="face",prune=prune,pruning_schedule=pruning_schedule)
+        #x = faceModel(inputs)
+        x = createFullyConnected(x,128,prune=prune,pruning_schedule=pruning_schedule)
         x = Dropout(0.5)(x)
-        x = createFullyConnected(x,64)
+        x = createFullyConnected(x,64,prune=prune,pruning_schedule=pruning_schedule)
         x = Dropout(0.5)(x)
 
         return x
@@ -321,19 +368,19 @@ def createEyeLocationModel(input):
         EL1 = createFullyConnected(input,512)
         EL2 = createFullyConnected(EL1, 256)
         return EL2
-def createMarkerModel(input):
-        MM0 = createFullyConnected(input,128)
-        MM1 = createFullyConnected(MM0,256)
+def createMarkerModel(input,prune=False,pruning_schedule=None):
+        MM0 = createFullyConnected(input,128,prune=prune,pruning_schedule=pruning_schedule)
+        MM1 = createFullyConnected(MM0,256,prune=prune,pruning_schedule=pruning_schedule)
         MM1 = Dropout(0.5)(MM1)
-        MM2 = createFullyConnected(MM1,512)
+        MM2 = createFullyConnected(MM1,512,prune=prune,pruning_schedule=pruning_schedule)
         MM2 = Dropout(0.5)(MM2)
-        MM3 = createFullyConnected(MM2,256)
+        MM3 = createFullyConnected(MM2,256,prune=prune,pruning_schedule=pruning_schedule)
         MM3 = Dropout(0.5)(MM3)
-        MM4 = createFullyConnected(MM3,128)
+        MM4 = createFullyConnected(MM3,128,prune=prune,pruning_schedule=pruning_schedule)
         MM4 = Dropout(0.5)(MM4)
         return MM4
 
-def initializeModel():
+def initializeModel():   #mobile net v2_0
         
         print("Initializing Model")
         #Defining input here
@@ -370,7 +417,7 @@ def initializeModel():
 
 
 
-def initializeModel_V2():
+def initializeModel_V2(prune=False,pruning_schedule=None):  #mobile net V2_1 use residual blocks
         
         print("Initializing Model")
         #Defining input here
@@ -380,25 +427,25 @@ def initializeModel_V2():
 #        faceGridInput = Input(shape=(6400,))
 #        EyeLocationInput = Input(shape=(8,))
         MarkerInput = Input(shape=(10,))
-        EyeModel = createEyeModelV2_1()
+        #EyeModel = createEyeModelV2_1(prune=prune,pruning_schedule=pruning_schedule)
         ### eye models
-        leftEyeData = EyeModel(leftEyeInput)
-        rightEyeData= EyeModel(rightEyeInput)
-        faceData = createFaceModelV2_1(faceInput)
+        leftEyeData = createEyeModelV2_1(leftEyeInput,name='leftEye',prune=prune,pruning_schedule=pruning_schedule)
+        rightEyeData= createEyeModelV2_1(rightEyeInput,name='rightEye',prune=prune,pruning_schedule=pruning_schedule)
+        faceData = createFaceModelV2_1(faceInput,prune=prune,pruning_schedule=pruning_schedule)
 #        faceGridData=createFaceGridModel(faceGridInput)
-        markerData = createMarkerModel(MarkerInput)
+        markerData = createMarkerModel(MarkerInput,prune=prune,pruning_schedule=pruning_schedule)
         
         EyeMerge =  Concatenate(axis=1)([leftEyeData,rightEyeData])
-        EyeFc1  = createFullyConnected(EyeMerge,128)
+        EyeFc1  = createFullyConnected(EyeMerge,128,prune=prune,pruning_schedule=pruning_schedule)
         EyeFc1  = Dropout(0.5)(EyeFc1)
 
         
         #Combining left & right eye face and faceGrid
         #dataLRMerge = Concatenate(axis=1)([EyeFc1,markerData])
         dataLRMerge = Concatenate(axis=1)([EyeFc1,faceData,markerData])
-        dataFc1 = createFullyConnected(dataLRMerge,128)
+        dataFc1 = createFullyConnected(dataLRMerge,128,prune=prune,pruning_schedule=pruning_schedule)
         dataFc1 = Dropout(0.5)(dataFc1)
-        finalOutput = createFullyConnected(dataFc1,2,activation = 'linear')
+        finalOutput = createFullyConnected(dataFc1,2,activation = 'linear',prune=prune,pruning_schedule=pruning_schedule)
 
 
         #Return the fully constructed model

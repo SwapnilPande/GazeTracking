@@ -25,20 +25,23 @@ if __name__ == '__main__':
         #TODO Determine how to use grouping in convolutional layer
 
         #Keras imports
-        from keras.models import Model, load_model
-        from keras.optimizers import SGD
-        from keras.utils.training_utils import multi_gpu_model
-        from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler #Import callbacks for training
-
+        from tensorflow.keras.models import Model, load_model
+        from tensorflow.keras.optimizers import SGD
+        from tensorflow.keras.utils import multi_gpu_model
+        from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler #Import callbacks for training
+        
+        import tensorflow.keras as keras
         #Tensorflow device
         import tensorflow as tf
-
+        import tensorflow.keras.layers as l
         #Custom imports
         from utils.uiUtils import yesNoPrompt #UI prompts
         from utils.customCallbacks import Logger #Logger callback for logging training progress
         from utils import GDataProcessor, DataProcessor,MTCNNDataProcessor, CaliDataProcessor,CaliDataProcessor_LessMemoryTest, FullDataProcessor #Custom datset processor
         import iTrackerModel # Machine learning model import
-
+        
+        import tensorflow_model_optimization as tfmot
+        from tensorflow_model_optimization.sparsity import keras as sparsity
         class ModelMGPU(Model):
                 def __init__(self, ser_model, gpus):
                         pmodel = multi_gpu_model(ser_model, gpus)
@@ -130,6 +133,9 @@ if __name__ == '__main__':
 
 
 
+
+
+
         #Confirm ML hyperparameters
         print("----------------------------")
         print('Learning Rate: ' + str(learningRate))
@@ -164,17 +170,17 @@ if __name__ == '__main__':
 
         #Initialize Data pre-processor here
         print('loading training data')
-        CaliTrain = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadValidateInMemory)
-        CaliValidate = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
-        ppTrain = MTCNNDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
-        ppValidate = MTCNNDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
+        #CaliTrain = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadValidateInMemory)
+        #CaliValidate = CaliDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
+        #ppTrain = MTCNNDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory)
+        #ppValidate = MTCNNDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory)
         
         
         
         #FullTrain = FullDataProcessor.DataPreProcessor(pathTemp, trainBatchSize, 'train', args, loadAllData = loadTrainInMemory,duplicate =100)
         #FullValidate = FullDataProcessor.DataPreProcessor(pathTemp, validateBatchSize, 'validate', args, loadAllData = loadValidateInMemory,duplicate=10)
         
-        ppTest = MTCNNDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
+        ppTest = MTCNNDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args,loadAllData = loadValidateInMemory)
         
         #GppTest =  GDataProcessor.DataPreProcessor(pathTemp, testBatchSize, 'test', args)
         
@@ -211,7 +217,11 @@ if __name__ == '__main__':
 
 
         print("")
-
+        ## prune schedule
+        
+        pruning_schedule = tfmot.sparsity.keras.PolynomialDecay(
+                        initial_sparsity=0.0, final_sparsity=0.5,
+                        begin_step=15000, end_step=7144*10)
         ##################################### IMPORT MODEL ####################################
         #Define Stochastic Gradient descent optimizer
         def getSGDOptimizer():
@@ -220,11 +230,11 @@ if __name__ == '__main__':
                 if(useMultiGPU):
                         with tf.device("/cpu:0"):
                                 #This is the model to be saved
-                                iTrackerModelOriginal = iTrackerModel.initializeModel_lambda() #Retrieve iTracker Model
+                                iTrackerModelOriginal = iTrackerModel.initializeModel_V2()#lambda() #Retrieve iTracker Model
                         iTrackerModel =ModelMGPU(iTrackerModelOriginal, numGPU) 
                         print("Using " + str(numGPU) + " GPUs")
                 else:
-                        iTrackerModel = iTrackerModel.initializeModel_lambda() #Retrieve iTracker Model
+                        iTrackerModel = iTrackerModel.initializeModel_V2(prune=True,pruning_schedule=pruning_schedule)#lambda() #Retrieve iTracker Model
                         print("Using 1 GPU")
 
 
@@ -302,9 +312,40 @@ if __name__ == '__main__':
         learningRateScheduler = LearningRateScheduler(lrScheduler)
         
         #Adding all callbacks to list to pass to fit generator
-        callbacks = [checkpointCallback, tensorboard, learningRateScheduler, loggerCallback]
+        callbacks = [sparsity.UpdatePruningStep(),
+                     sparsity.PruningSummaries(log_dir=pathLogging, profile_batch=0),
+                                               checkpointCallback, tensorboard, learningRateScheduler, loggerCallback]
 
 
+        # model pruning setup
+        
+        # test model 
+        def build_sequential_model(input_shape):
+            return tf.keras.Sequential([
+                    l.Conv2D(
+                            32, 5, padding='same', activation='relu', input_shape=input_shape),
+                    l.MaxPooling2D((2, 2), (2, 2), padding='same'),
+                    l.BatchNormalization(),
+                    l.Conv2D(64, 5, padding='same', activation='relu'),
+                    l.MaxPooling2D((2, 2), (2, 2), padding='same'),
+                    l.Flatten(),
+                    l.Dense(1024, activation='relu'),
+                    
+                    ])
+        test_model = build_sequential_model((224,224,3))
+        ## end buiding test model
+        
+        
+        pruning_schedule = tfmot.sparsity.keras.PolynomialDecay(
+                        initial_sparsity=0.0, final_sparsity=0.5,
+                        begin_step=2000, end_step=4000)
+        new_pruning_params = {
+                'pruning_schedule': pruning_schedule
+                }
+        #model_for_pruning =tfmot.sparsity.keras.prune_low_magnitude(trainModel(), **new_pruning_params)
+        #model_for_pruning.summary()
+        #model_for_pruning.compile(getSGDOptimizer(), loss=['mse'])
+        trainModel().summary()
         #################################### TRAINING MODEL ###################################
         print("")
         print("Beginning Training...")
@@ -323,7 +364,7 @@ if __name__ == '__main__':
 
        
         trainModel().fit_generator(
-                        ppValidate, 
+                        ppTrain, 
                         epochs = numEpochs, 
                         validation_data = ppValidate, 
                         callbacks = callbacks,
@@ -334,7 +375,7 @@ if __name__ == '__main__':
                 )
 
         
-        '''
+       
         for i in range(200):
                 
                 start_epoch = 1000+i
@@ -374,7 +415,7 @@ if __name__ == '__main__':
                         max_queue_size = queueSize,
                         shuffle=True
                 )
-        
+        '''
                
         #Evaluate model here
         testLoss = iTrackerModel.evaluate_generator(
@@ -383,7 +424,9 @@ if __name__ == '__main__':
         )
 
         print("Saving trained model to " + pathLogging + "/final_model.h5")
-        saveModel().save(pathLogging + "/final_model.h5")
+# =============================================================================
+#         saveModel().save(pathLogging + "/final_model.h5")
+# =============================================================================
 
         print()
         print("FINISHED MODEL TRAINING AND EVALUATION")

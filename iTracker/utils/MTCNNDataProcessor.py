@@ -6,8 +6,8 @@ import os
 import shutil
 import math
 import tarfile
-from keras.utils import Sequence
-from keras.utils.training_utils import multi_gpu_model
+from tensorflow.keras.utils import Sequence
+from tensorflow.keras.utils import multi_gpu_model
 from utils.uiUtils import yesNoPrompt, createProgressBar
 from utils import imageUtils
 from scipy.spatial import distance as dist
@@ -745,6 +745,12 @@ class DataPreProcessor(Sequence):
 #                faceGridBatch = self.getEyeGrids(framesToRetrieve)
                 markerBatch = self.getMarkers(framesToRetrieve)
                 labelsBatch = self.getLabels(framesToRetrieve)
+                if index==0:
+                    np.save('face.np',faceBatch)
+                    np.save('leftEye.np',leftEyeBatch)
+                    np.save('rightEye.np',rightEyeBatch)
+                    np.save('marker.np',markerBatch)
+                    np.save('label.np',labelsBatch)
                 if(not self.debug):
                         return {
                                 'input_3' : faceBatch, 
